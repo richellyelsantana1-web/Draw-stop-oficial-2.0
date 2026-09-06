@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Draw</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root { --paper:#EDE4D2; --paper-2:#E3D6BC; --ink:#1F3A5C; --brick:#B23B2E; --mustard:#D9A404; --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:'Poppins',sans-serif; color:var(--charcoal); background:var(--paper); }
+  body { display:flex; flex-direction:column; align-items:center; padding:10px 10px 30px; }
+  .container { width:100%; max-width:520px; display:flex; flex-direction:column; gap:10px; }
+  .top-bar { display:flex; justify-content:space-between; align-items:center; }
+  .btn-back { background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:6px 14px; font-weight:700; text-decoration:none; color:var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); font-size:13px; cursor:pointer; }
+  .timer-box { font-family:'Bebas Neue',sans-serif; font-size:26px; background:var(--brick); color:#FFF; padding:4px 16px; border-radius:10px; border:2px solid var(--charcoal); }
+  .word-hint { text-align:center; font-family:'Bebas Neue',sans-serif; font-size:28px; letter-spacing:4px; background:var(--cream); border:3px solid var(--charcoal); border-radius:14px; padding:8px; }
+
+  .canvas-wrap { background:#FFF; border:3px solid var(--charcoal); border-radius:16px; box-shadow:4px 6px 0px var(--charcoal); overflow:hidden; position:relative; touch-action:none; }
+  #canvas { width:100%; display:block; touch-action:none; cursor:crosshair; }
+
+  .tools-row { display:flex; gap:8px; align-items:center; flex-wrap:wrap; background:var(--cream); border:2.5px solid var(--charcoal); border-radius:14px; padding:8px; }
+  .palette-grid { display:grid; grid-template-columns:repeat(8,1fr); gap:4px; width:100%; }
+  .color-swatch { width:22px; height:22px; border-radius:6px; border:2px solid var(--charcoal); cursor:pointer; }
+  .color-swatch.selected { outline:2px solid var(--ink); outline-offset:2px; }
+  .tool-btn { padding:6px 10px; border:2px solid var(--charcoal); border-radius:8px; background:var(--paper-2); font-weight:800; font-size:12px; cursor:pointer; }
+  .tool-btn.active { background:var(--mustard); }
+  .brush-slider { width:70px; }
+
+  .chat-guess-box { background:var(--cream); border:3px solid var(--charcoal); border-radius:14px; padding:10px; display:flex; flex-direction:column; gap:6px; max-height:160px; }
+  .chat-messages { flex:1; overflow-y:auto; display:flex; flex-direction:column; gap:4px; font-size:12px; max-height:100px; }
+  .chat-input-row { display:flex; gap:6px; }
+  .chat-input { flex:1; padding:8px 10px; border:2px solid var(--charcoal); border-radius:10px; font-size:13px; }
+  .chat-send { background:var(--mustard); border:2px solid var(--charcoal); border-radius:10px; padding:8px 12px; font-weight:800; cursor:pointer; }
+  .guess-correct { color:var(--green); font-weight:800; }
+  .guess-close { color:#B8960C; font-weight:700; }
+
+  .players-strip { display:flex; gap:6px; overflow-x:auto; padding-bottom:2px; }
+  .player-chip { background:var(--paper-2); border:2px solid var(--charcoal); border-radius:20px; padding:4px 10px; font-size:11px; font-weight:800; white-space:nowrap; }
+  .player-chip.drawing { background:var(--mustard); }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <button class="btn-back" onclick="leaveGame()">⬅ Sair</button>
+      <div class="timer-box" id="timer">60</div>
+    </div>
+
+    <div class="players-strip" id="playersStrip"></div>
+
+    <div class="word-hint" id="wordHint">Aguardando início...</div>
+
+    <div class="canvas-wrap">
+      <canvas id="canvas" width="500" height="360"></canvas>
+    </div>
+
+    <div class="tools-row" id="toolsRow" style="display:none;">
+      <div class="palette-grid" id="paletteGrid"></div>
+      <input type="color" id="customColor" title="Cor personalizada" style="width:32px; height:32px; border:2px solid var(--charcoal); border-radius:8px; padding:0; cursor:pointer;" onchange="setColor(this.value, null)">
+      <input type="range" class="brush-slider" id="brushSize" min="2" max="24" value="5">
+      <button class="tool-btn" id="toolPencil" onclick="setTool('pencil')">✏️ Lápis</button>
+      <button class="tool-btn" id="toolEraser" onclick="setTool('eraser')">🧽 Borracha</button>
+      <button class="tool-btn" id="toolBucket" onclick="setTool('bucket')">🪣 Balde</button>
+      <select id="brushStyleSelect" class="tool-btn" style="cursor:pointer;" onchange="setBrushStyle(this.value)">
+        <option value="normal">✏️ Normal</option>
+        <option value="crayon">🖍️ Giz de Cera</option>
+        <option value="rainbow">🌈 Arco-Íris</option>
+        <option value="neon">💡 Neon</option>
+      </select>
+      <button class="tool-btn" onclick="undoStroke()">↩️ Desfazer</button>
+      <button class="tool-btn" onclick="clearCanvas()">🗑️ Limpar</button>
+      <button class="tool-btn" id="hintBtn" onclick="giveHint()" style="background:var(--mustard);">💡 Dica (-5pts)</button>
+    </div>
+
+    <div class="chat-guess-box">
+      <div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-input-row" id="chatInputRow">
+        <input type="text" id="chatInput" class="chat-input" placeholder="Digite seu palpite..." onkeydown="if(event.key==='Enter') sendGuess()">
+        <button class="chat-send" onclick="sendGuess()">➤</button>
+      </div>
+    </div>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const roomId = params.get('room');
+  let myProfile = null;
+  let room = null;
+  let currentRound = null;
+  let isDrawer = false;
+  let drawing = false;
+  let currentColor = '#000000';
+  let currentTool = 'pencil'; // pencil | eraser
+  let lastX, lastY;
+  let timerInterval = null;
+  let strokeHistory = []; // { x1,y1,x2,y2,color,size } — usado para o "desfazer"
+  let currentStrokeGroup = [];
+  let roundEnded = false;
+
+  const canvas = document.getElementById('canvas');
+  const ctx = canvas.getContext('2d');
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  let lastCanvasWidth = 0;
+
+  function resizeCanvas() {
+    const ratio = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+
+    // No celular, abrir o teclado dispara um evento de "resize" só de ALTURA (o teclado
+    // ocupa espaço embaixo), não de largura. Redimensionar o canvas SEMPRE apaga o desenho
+    // (é assim que <canvas> funciona), então só refazemos isso quando a LARGURA muda de
+    // verdade (giro de tela, por exemplo) — e depois restauramos o desenho a partir do histórico.
+    if (Math.abs(rect.width - lastCanvasWidth) < 2) return;
+    lastCanvasWidth = rect.width;
+
+    canvas.width = rect.width * ratio;
+    canvas.height = 360 * ratio;
+    ctx.scale(ratio, ratio);
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
+
+    if (typeof redrawAll === 'function') redrawAll();
+  }
+  window.addEventListener('resize', resizeCanvas);
+
+  const FULL_PALETTE = ['#000000','#FFFFFF','#B23B2E','#D9A404','#3E8E5A','#1F3A5C','#8E44AD','#E91E63','#FF9800','#00BCD4','#795548','#607D8B','#FFEB3B','#4CAF50','#9C27B0','#F44336'];
+
+  function renderPalette() {
+    const grid = document.getElementById('paletteGrid');
+    grid.innerHTML = FULL_PALETTE.map((c, i) => `
+      <div class="color-swatch ${i === 0 ? 'selected' : ''}" style="background:${c}; ${c === '#FFFFFF' ? 'border-color:#999;' : ''}" onclick="setColor('${c}', this)"></div>
+    `).join('');
+  }
+  renderPalette();
+
+  function setColor(c, el) {
+    currentColor = c;
+    currentTool = 'pencil';
+    document.querySelectorAll('.color-swatch').forEach(s => s.classList.remove('selected'));
+    if (el) el.classList.add('selected');
+    updateToolButtons();
+  }
+
+  function setTool(tool) {
+    currentTool = tool;
+    updateToolButtons();
+  }
+
+  function updateToolButtons() {
+    document.getElementById('toolPencil').classList.toggle('active', currentTool === 'pencil');
+    document.getElementById('toolEraser').classList.toggle('active', currentTool === 'eraser');
+    document.getElementById('toolBucket').classList.toggle('active', currentTool === 'bucket');
+  }
+
+  function getPos(e) {
+    const rect = canvas.getBoundingClientRect();
+    const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+    const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+    return { x: (clientX - rect.left), y: (clientY - rect.top) };
+  }
+
+  function startDraw(e) {
+    if (!isDrawer) return;
+
+    if (currentTool === 'bucket') {
+      const pos = getPos(e);
+      const color = currentColor;
+      floodFillAt(pos.x, pos.y, color);
+      strokeHistory.push([{ bucket: true, x: pos.x, y: pos.y, color }]);
+      if (strokeChannel) strokeChannel.send({ type: 'broadcast', event: 'bucket', payload: { x: pos.x, y: pos.y, color } });
+      return;
+    }
+
+    drawing = true;
+    const pos = getPos(e);
+    lastX = pos.x; lastY = pos.y;
+  }
+
+  async function draw(e) {
+    if (!drawing || !isDrawer) return;
+    e.preventDefault();
+    const pos = getPos(e);
+    const size = document.getElementById('brushSize').value;
+    const color = currentTool === 'eraser' ? '#FFFFFF' : currentColor;
+
+    drawSegment(lastX, lastY, pos.x, pos.y, color, size);
+    currentStrokeGroup.push({ x1: lastX, y1: lastY, x2: pos.x, y2: pos.y, color, size, brush: currentBrushStyle });
+    await broadcastStroke(lastX, lastY, pos.x, pos.y, color, size);
+
+    lastX = pos.x; lastY = pos.y;
+  }
+
+  function endDraw() {
+    if (drawing && currentStrokeGroup.length > 0) {
+      strokeHistory.push(currentStrokeGroup);
+      currentStrokeGroup = [];
+    }
+    drawing = false;
+  }
+
+  let currentBrushStyle = 'normal';
+  let _rainbowHue = 0;
+
+  function setBrushStyle(style) {
+    currentBrushStyle = style;
+  }
+
+  function drawSegment(x1, y1, x2, y2, color, size, brushOverride) {
+    const brush = brushOverride || currentBrushStyle;
+
+    if (brush === 'neon') {
+      // Neon: traço brilhante com um "halo" de luz ao redor (glow real do canvas)
+      ctx.save();
+      ctx.shadowColor = color;
+      ctx.shadowBlur = size * 1.8;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = size;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      ctx.restore();
+      return;
+    }
+
+    if (brush === 'rainbow') {
+      // Arco-íris: a cor muda sozinha conforme o traço avança
+      _rainbowHue = (_rainbowHue + 4) % 360;
+      ctx.strokeStyle = `hsl(${_rainbowHue}, 90%, 55%)`;
+      ctx.lineWidth = size;
+      ctx.lineCap = 'round';
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+      return;
+    }
+
+    if (brush === 'crayon') {
+      // Giz de cera: linha tremida e porosa (várias cerdas finas com leve tremor aleatório)
+      ctx.strokeStyle = color;
+      ctx.lineWidth = Math.max(1, size / 5);
+      ctx.lineCap = 'round';
+      for (let i = 0; i < 5; i++) {
+        const jitter = () => (Math.random() - 0.5) * size * 0.6;
+        ctx.globalAlpha = 0.35 + Math.random() * 0.25;
+        ctx.beginPath();
+        ctx.moveTo(x1 + jitter(), y1 + jitter());
+        ctx.lineTo(x2 + jitter(), y2 + jitter());
+        ctx.stroke();
+      }
+      ctx.globalAlpha = 1;
+      return;
+    }
+
+    // Normal
+    ctx.strokeStyle = color;
+    ctx.lineWidth = size;
+    ctx.lineCap = 'round';
+    ctx.beginPath();
+    ctx.moveTo(x1, y1);
+    ctx.lineTo(x2, y2);
+    ctx.stroke();
+  }
+
+  function redrawAll() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    strokeHistory.flat().forEach(s => {
+      if (s.bucket) {
+        floodFillAt(s.x, s.y, s.color);
+      } else {
+        drawSegment(s.x1, s.y1, s.x2, s.y2, s.color, s.size, s.brush || 'normal');
+      }
+    });
+  }
+
+  function undoStroke() {
+    if (!isDrawer || strokeHistory.length === 0) return;
+    strokeHistory.pop();
+    redrawAll();
+    if (strokeChannel) strokeChannel.send({ type: 'broadcast', event: 'undo', payload: { strokeHistory } });
+  }
+
+  function hexToRgba(hex) {
+    const h = hex.replace('#', '');
+    const bigint = parseInt(h.length === 3 ? h.split('').map(c => c+c).join('') : h, 16);
+    return [ (bigint >> 16) & 255, (bigint >> 8) & 255, bigint & 255, 255 ];
+  }
+
+  function colorsMatch(data, i, target, tolerance) {
+    return Math.abs(data[i] - target[0]) <= tolerance &&
+           Math.abs(data[i+1] - target[1]) <= tolerance &&
+           Math.abs(data[i+2] - target[2]) <= tolerance &&
+           Math.abs(data[i+3] - target[3]) <= tolerance;
+  }
+
+  // Preenchimento por área (flood fill) real, a partir do ponto clicado — como no Gartic original
+  function floodFillAt(startX, startY, fillColor) {
+    const w = canvas.width, h = canvas.height;
+    const imgData = ctx.getImageData(0, 0, w, h);
+    const data = imgData.data;
+
+    const px = Math.floor(startX * (w / canvas.getBoundingClientRect().width));
+    const py = Math.floor(startY * (h / canvas.getBoundingClientRect().height));
+    const startIdx = (py * w + px) * 4;
+    const targetColor = [data[startIdx], data[startIdx+1], data[startIdx+2], data[startIdx+3]];
+    const fillRgba = hexToRgba(fillColor);
+
+    if (colorsMatch(data, startIdx, fillRgba, 0)) return; // já é essa cor
+
+    const tolerance = 32;
+    const stack = [[px, py]];
+    const visited = new Uint8Array(w * h);
+
+    while (stack.length) {
+      const [x, y] = stack.pop();
+      if (x < 0 || x >= w || y < 0 || y >= h) continue;
+      const idx = y * w + x;
+      if (visited[idx]) continue;
+      const dataIdx = idx * 4;
+      if (!colorsMatch(data, dataIdx, targetColor, tolerance)) continue;
+
+      visited[idx] = 1;
+      data[dataIdx] = fillRgba[0];
+      data[dataIdx+1] = fillRgba[1];
+      data[dataIdx+2] = fillRgba[2];
+      data[dataIdx+3] = 255;
+
+      stack.push([x+1,y], [x-1,y], [x,y+1], [x,y-1]);
+    }
+
+    ctx.putImageData(imgData, 0, 0);
+  }
+
+  function fillCanvas(e) {
+    // Chamado a partir de um clique no canvas quando a ferramenta "balde" está ativa
+  }
+
+  function clearCanvas() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    strokeHistory = [];
+    currentStrokeGroup = [];
+    if (isDrawer) broadcastClear();
+  }
+
+  canvas.addEventListener('mousedown', startDraw);
+  canvas.addEventListener('mousemove', draw);
+  canvas.addEventListener('mouseup', endDraw);
+  canvas.addEventListener('mouseleave', endDraw);
+  canvas.addEventListener('touchstart', startDraw);
+  canvas.addEventListener('touchmove', draw);
+  canvas.addEventListener('touchend', endDraw);
+
+  // ===== Realtime broadcast do desenho =====
+  let strokeChannel = null;
+
+  async function broadcastStroke(x1, y1, x2, y2, color, size) {
+    if (!strokeChannel) return;
+    strokeChannel.send({ type: 'broadcast', event: 'stroke', payload: { x1, y1, x2, y2, color, size, brush: currentBrushStyle } });
+  }
+
+  async function broadcastClear() {
+    if (!strokeChannel) return;
+    strokeChannel.send({ type: 'broadcast', event: 'clear', payload: {} });
+  }
+
+  function setupStrokeChannel() {
+    strokeChannel = dsClient.channel('canvas-' + roomId);
+    strokeChannel
+      .on('broadcast', { event: 'stroke' }, ({ payload }) => {
+        drawSegment(payload.x1, payload.y1, payload.x2, payload.y2, payload.color, payload.size, payload.brush || 'normal');
+      })
+      .on('broadcast', { event: 'clear' }, () => {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+      })
+      .on('broadcast', { event: 'undo' }, ({ payload }) => {
+        strokeHistory = payload.strokeHistory;
+        redrawAll();
+      })
+      .on('broadcast', { event: 'bucket' }, ({ payload }) => {
+        floodFillAt(payload.x, payload.y, payload.color);
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rounds', filter: `room_id=eq.${roomId}` }, ({ new: updatedRound }) => {
+        if (currentRound && updatedRound.id === currentRound.id) {
+          currentRound.hints_revealed = updatedRound.hints_revealed;
+          updateWordHintDisplay();
+        }
+      })
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `room_id=eq.${roomId}` }, async ({ new: msg }) => {
+        const { data: p } = await dsClient.from('profiles').select('display_name').eq('id', msg.player_id).single();
+        addChatMessage(p?.display_name || '?', msg.message, msg.is_correct_guess);
+      })
+      .subscribe();
+  }
+
+  // ===== Chat / palpites (persistente no banco de dados) =====
+  function addChatMessage(name, text, isCorrect, isSystem, isClose) {
+    const div = document.createElement('div');
+    div.className = isCorrect ? 'guess-correct' : (isClose ? 'guess-close' : '');
+    if (isSystem) {
+      div.innerText = text;
+      div.style.opacity = '0.7';
+      div.style.fontStyle = 'italic';
+    } else if (isClose) {
+      div.innerText = `🔥 ${name} está quase acertando! (${text})`;
+    } else {
+      div.innerText = isCorrect ? `🎉 ${name} acertou a palavra!` : `${name}: ${text}`;
+    }
+    document.getElementById('chatMessages').appendChild(div);
+    document.getElementById('chatMessages').scrollTop = 9999;
+  }
+
+  async function loadChatHistory() {
+    document.getElementById('chatMessages').innerHTML = '';
+    const { data: messages } = await dsClient
+      .from('chat_messages')
+      .select('*, profile:player_id(display_name)')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true })
+      .limit(100);
+    (messages || []).forEach(m => addChatMessage(m.profile?.display_name || '?', m.message, m.is_correct_guess));
+  }
+
+  // Calcula o quão parecidas duas palavras são (distância de Levenshtein simplificada)
+  function isCloseGuess(guess, word) {
+    if (!guess || !word || Math.abs(guess.length - word.length) > 2) return false;
+    const a = guess.toLowerCase(), b = word.toLowerCase();
+    if (a === b) return false;
+    let diffs = 0;
+    const maxLen = Math.max(a.length, b.length);
+    for (let i = 0; i < maxLen; i++) {
+      if (a[i] !== b[i]) diffs++;
+    }
+    return diffs <= 2;
+  }
+
+  async function sendGuess() {
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim();
+    if (!text || isDrawer || roundEnded) return;
+
+    // Checa se o jogador está mutado por um ADM
+    const { data: freshProfile } = await dsClient.from('profiles').select('muted_until').eq('id', myProfile.id).single();
+    if (freshProfile && freshProfile.muted_until && new Date(freshProfile.muted_until) > new Date()) {
+      addChatMessage('', `🔇 Você está silenciado até ${new Date(freshProfile.muted_until).toLocaleTimeString('pt-BR')}.`, false, true);
+      return;
+    }
+
+    const isCorrect = currentRound && currentRound.word && text.toLowerCase().trim() === currentRound.word.toLowerCase().trim();
+    const isClose = !isCorrect && currentRound && currentRound.word && isCloseGuess(text, currentRound.word);
+
+    await dsClient.from('chat_messages').insert({
+      room_id: roomId, round_id: currentRound?.id || null, player_id: myProfile.id,
+      message: isCorrect ? '🎉 acertou a palavra!' : text, is_correct_guess: isCorrect
+    });
+
+    if (isClose) addChatMessage(myProfile.display_name, text, false, false, true);
+
+    input.value = '';
+    if (isCorrect) await awardPoints();
+  }
+
+  // Calcula pontos: quem acerta ganha mais pontos quanto mais rápido acertar; o desenhista também ganha pontos fixos
+  async function awardPoints() {
+    if (roundEnded) return;
+    roundEnded = true;
+
+    const secondsLeft = parseInt(document.getElementById('timer').innerText) || 0;
+    const guesserPoints = 50 + secondsLeft * 2;
+    const drawerPoints = 30;
+
+    const { data: guesserRow } = await dsClient.from('room_players').select('score').eq('room_id', roomId).eq('player_id', myProfile.id).single();
+    await dsClient.from('room_players').update({ score: (guesserRow?.score || 0) + guesserPoints }).eq('room_id', roomId).eq('player_id', myProfile.id);
+    dsUnlockAchievement(myProfile.id, 'gartic_win');
+
+    if (currentRound.drawer_id) {
+      const { data: drawerRow } = await dsClient.from('room_players').select('score').eq('room_id', roomId).eq('player_id', currentRound.drawer_id).single();
+      await dsClient.from('room_players').update({ score: (drawerRow?.score || 0) + drawerPoints }).eq('room_id', roomId).eq('player_id', currentRound.drawer_id);
+    }
+
+    // Verifica se alguém já bateu o objetivo de pontos da sala — se sim, encerra a partida
+    if (room.points_goal) {
+      const { data: allPlayers } = await dsClient.from('room_players').select('score').eq('room_id', roomId);
+      const someoneWon = (allPlayers || []).some(p => p.score >= room.points_goal);
+      if (someoneWon) {
+        clearInterval(timerInterval);
+        await dsClient.from('rooms').update({ status: 'finished' }).eq('id', roomId);
+        return;
+      }
+    }
+
+    // Avança para a próxima rodada em 2 segundos (dá tempo de ver o acerto)
+    clearInterval(timerInterval);
+    if (room.host_id === myProfile.id) {
+      setTimeout(() => advanceRound(), 2000);
+    }
+  }
+
+  // ===== Estado da sala/rodada =====
+  async function loadRoomAndPlayers() {
+    const { data: r } = await dsClient.from('rooms').select('*').eq('id', roomId).single();
+    room = r;
+
+    const { data: players } = await dsClient.from('room_players').select('*, profile:player_id(*)').eq('room_id', roomId);
+    document.getElementById('playersStrip').innerHTML = (players || []).map(p => `
+      <div class="player-chip ${currentRound && p.player_id === currentRound.drawer_id ? 'drawing' : ''}">
+        ${p.profile.avatar_emoji || '🎨'} ${p.profile.display_name} · ${p.score || 0}pts
+      </div>
+    `).join('');
+
+    return players || [];
+  }
+
+  async function startRoundIfHost(players) {
+    if (room.host_id !== myProfile.id) return;
+
+    const { data: existingRound } = await dsClient.from('rounds').select('*').eq('room_id', roomId).eq('round_number', room.current_round).maybeSingle();
+    if (existingRound) return;
+
+    const drawerIndex = (room.current_round - 1) % players.length;
+    const drawer = players[drawerIndex];
+
+    const WORD_BANKS = {
+      animais: ['Cachorro','Gato','Elefante','Girafa','Leão','Tubarão','Coelho','Tartaruga','Águia','Cavalo'],
+      objetos: ['Cadeira','Óculos','Chave','Guarda-chuva','Relógio','Tesoura','Mochila','Espelho','Vela','Escova'],
+      filmes: ['Titanic','Coringa','Vingadores','Frozen','Matrix','Shrek','Rei Leão','Tubarão','Batman','Toy Story'],
+      comidas: ['Pizza','Hambúrguer','Sushi','Feijoada','Sorvete','Pastel','Churrasco','Brigadeiro','Coxinha','Lasanha'],
+      profissoes: ['Médico','Professor','Bombeiro','Cozinheiro','Policial','Pintor','Astronauta','Advogado','Piloto','Veterinário'],
+      lugares: ['Praia','Montanha','Escola','Aeroporto','Castelo','Floresta','Deserto','Cachoeira','Cidade','Fazenda'],
+      personagens: ['Mickey Mouse','Homem-Aranha','Super-Homem','Pikachu','Naruto','Mario','Sonic','Homer Simpson','Harry Potter','Shrek'],
+      esportes: ['Futebol','Basquete','Natação','Vôlei','Surfe','Skate','Boxe','Tênis','Corrida','Ginástica'],
+      natureza: ['Árvore','Rio','Vulcão','Arco-íris','Estrela','Lua','Trovão','Neve','Furacão','Cachoeira'],
+      tecnologia: ['Celular','Computador','Robô','Internet','Foguete','Drone','Satélite','Fone de ouvido','Câmera','Impressora'],
+    };
+
+    let pool;
+    if (!room.word_category || room.word_category === 'todas') {
+      pool = Object.values(WORD_BANKS).flat();
+    } else {
+      pool = WORD_BANKS[room.word_category] || Object.values(WORD_BANKS).flat();
+    }
+    const word = pool[Math.floor(Math.random() * pool.length)];
+
+    await dsClient.from('rounds').insert({
+      room_id: roomId, round_number: room.current_round, drawer_id: drawer.player_id, word
+    });
+  }
+
+  function startTimer(seconds) {
+    clearInterval(timerInterval);
+    let t = seconds;
+    document.getElementById('timer').innerText = t;
+    timerInterval = setInterval(() => {
+      t--;
+      document.getElementById('timer').innerText = Math.max(t, 0);
+      if (t <= 0) {
+        clearInterval(timerInterval);
+        if (room.host_id === myProfile.id) advanceRound();
+      }
+    }, 1000);
+  }
+
+  async function advanceRound() {
+    const nextRound = room.current_round + 1;
+    if (nextRound > room.num_rounds) {
+      await dsClient.from('rooms').update({ status: 'finished' }).eq('id', roomId);
+      alert('Partida encerrada! Obrigado por jogar 🎨');
+      window.location.href = 'drawstop-menu.html';
+      return;
+    }
+    await dsClient.from('rooms').update({ current_round: nextRound }).eq('id', roomId);
+  }
+
+  async function refreshRound() {
+    let { data: r } = await dsClient.from('rounds').select('*').eq('room_id', roomId).eq('round_number', room.current_round).maybeSingle();
+
+    // Mesma correção aplicada no Stop: se a rodada ainda não foi criada no banco
+    // (pequeno atraso do anfitrião), tenta de novo em vez de ficar travado sem palavra.
+    if (!r) {
+      for (let tentativa = 0; tentativa < 10 && !r; tentativa++) {
+        await new Promise(res => setTimeout(res, 400));
+        const retry = await dsClient.from('rounds').select('*').eq('room_id', roomId).eq('round_number', room.current_round).maybeSingle();
+        r = retry.data;
+      }
+    }
+
+    currentRound = r;
+    if (!currentRound) return;
+
+    isDrawer = currentRound.drawer_id === myProfile.id;
+    document.getElementById('toolsRow').style.display = isDrawer ? 'flex' : 'none';
+    document.getElementById('hintBtn').style.display = isDrawer ? 'inline-block' : 'none';
+    document.getElementById('chatInputRow').style.display = isDrawer ? 'none' : 'flex';
+    updateWordHintDisplay();
+
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    strokeHistory = [];
+    currentStrokeGroup = [];
+    roundEnded = false;
+    await loadChatHistory();
+    startTimer(room.round_time || 60);
+  }
+
+  function updateWordHintDisplay() {
+    if (!currentRound) return;
+    const word = currentRound.word || '';
+    if (isDrawer) {
+      document.getElementById('wordHint').innerText = `Desenhe: ${word}`;
+      return;
+    }
+    const hints = currentRound.hints_revealed || 0;
+    const masked = word.split('').map((letter, i) => (i < hints ? letter : '_')).join(' ');
+    document.getElementById('wordHint').innerText = `${word.length} letras: ${masked}`;
+  }
+
+  async function giveHint() {
+    if (!isDrawer || !currentRound) return;
+    const word = currentRound.word || '';
+    const current = currentRound.hints_revealed || 0;
+    if (current >= word.length - 1) { alert('Não é possível revelar mais letras (sobraria só a última)!'); return; }
+
+    const newHints = current + 1;
+    await dsClient.from('rounds').update({ hints_revealed: newHints }).eq('id', currentRound.id);
+    currentRound.hints_revealed = newHints;
+  }
+
+  async function leaveGame() {
+    await dsClient.from('room_players').delete().eq('room_id', roomId).eq('player_id', myProfile.id);
+    await dsSetStatus('online');
+    window.location.href = 'drawstop-menu.html';
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+    myProfile = await dsGetProfile();
+    if (myProfile.settings && myProfile.settings.ambient_music !== false) {
+      dsPlayAmbientMusic((myProfile.settings.bgm ?? 80) / 100);
+    }
+
+    resizeCanvas();
+    setupStrokeChannel();
+    // Palpites agora chegam via chat_messages (postgres_changes) no canal principal, não mais por broadcast aqui.
+
+    const players = await loadRoomAndPlayers();
+    await startRoundIfHost(players);
+    await refreshRound();
+
+    dsClient.channel('gartic-room-' + roomId)
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'rounds', filter: `room_id=eq.${roomId}` }, (payload) => {
+        if (!currentRound || currentRound.round_number !== payload.new.round_number) {
+          refreshRound();
+        }
+      })
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, async (payload) => {
+        room = payload.new;
+        if (room.status === 'finished') { window.location.href = 'drawstop-menu.html'; return; }
+        const players = await loadRoomAndPlayers();
+        await startRoundIfHost(players);
+        await refreshRound();
+      })
+      .subscribe();
+  });
+</script>
+</body>
+</html>

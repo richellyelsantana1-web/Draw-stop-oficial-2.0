@@ -1,0 +1,361 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Configurações</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --paper:#EDE4D2; --paper-2:#E3D6BC; --paper-deep:#D8C8A6; --ink:#1F3A5C; --ink-light:#345480;
+    --brick:#B23B2E; --mustard:#D9A404; --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A;
+    --pf-font:'Poppins', sans-serif;
+  }
+  body.dark-mode {
+    --paper:#1A1A1A; --paper-2:#2A2A2A; --paper-deep:#333333;
+    --ink:#8FAEFF; --ink-light:#B0C4DE; --charcoal:#F0F0F0; --cream:#242424;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:var(--pf-font); color:var(--charcoal); background:var(--paper); overflow-x:hidden; transition:background .3s,color .3s; }
+  body { display:flex; flex-direction:column; align-items:center; padding:15px 12px 50px; position:relative; }
+  body::before {
+    content:''; position:fixed; top:0; left:0; right:0; bottom:0;
+    background-image: linear-gradient(90deg, transparent 79px, #ab4747 79px, #ab4747 81px, transparent 81px),
+      linear-gradient(var(--paper-deep) 1px, transparent 1px);
+    background-size:100% 100%, 100% 28px; opacity:.35; z-index:-2; pointer-events:none;
+  }
+  .container { width:100%; max-width:480px; display:flex; flex-direction:column; gap:16px; }
+  .top-bar { display:flex; justify-content:space-between; align-items:center; width:100%; }
+  .btn-back { background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:6px 14px; font-weight:700; color:var(--charcoal); text-decoration:none; box-shadow:3px 3px 0px var(--charcoal); font-size:13px; cursor:pointer; }
+  .header-title { font-family:'Bebas Neue', sans-serif; font-size:32px; text-align:center; margin:0; line-height:1; }
+
+  .card-box { background:var(--cream); border:3px solid var(--charcoal); border-radius:20px; box-shadow:4px 6px 0px var(--charcoal); padding:18px; display:flex; flex-direction:column; gap:14px; }
+  .section-title { font-family:'Bebas Neue', cursive; font-size:20px; display:flex; align-items:center; gap:8px; border-bottom:2px dashed var(--paper-deep); padding-bottom:6px; margin:0; }
+
+  .account-info-box { display:flex; align-items:center; gap:14px; background:var(--paper-2); padding:12px; border-radius:12px; border:2px solid var(--charcoal); }
+  .account-avatar { width:50px; height:50px; border-radius:10px; background:#FFF; border:2px solid var(--charcoal); display:flex; align-items:center; justify-content:center; font-size:24px; font-weight:800; }
+  .account-details { display:flex; flex-direction:column; gap:2px; }
+  .account-name { font-weight:800; font-size:16px; margin:0; }
+  .account-email { font-size:12px; opacity:.8; font-weight:600; }
+  .account-id { font-size:11px; font-weight:700; color:var(--ink-light); }
+
+  .setting-row { display:flex; flex-direction:column; gap:6px; }
+  .setting-label { display:flex; justify-content:space-between; font-size:13px; font-weight:700; }
+  .range-slider { width:100%; accent-color:var(--mustard); height:8px; cursor:pointer; }
+
+  .checkbox-row { display:flex; align-items:center; justify-content:space-between; font-size:13px; font-weight:700; cursor:pointer; }
+  .checkbox-row input[type="checkbox"] { width:20px; height:20px; accent-color:var(--mustard); cursor:pointer; }
+
+  .select-custom { width:100%; padding:8px 12px; border:2.5px solid var(--charcoal); border-radius:10px; font-family:inherit; font-weight:700; font-size:13px; background:#FFF; color:#000; outline:none; box-shadow:2px 2px 0px var(--charcoal); }
+
+  .adm-box { border-color:var(--mustard); }
+  .danger-zone { border-color:var(--brick); }
+  .btn-danger { width:100%; padding:10px; background:var(--brick); color:#FFF; border:2.5px solid var(--charcoal); border-radius:12px; font-weight:800; font-size:13px; cursor:pointer; box-shadow:3px 3px 0px var(--charcoal); text-transform:uppercase; }
+  .btn-danger:active { transform:translate(2px,2px); box-shadow:1px 1px 0px var(--charcoal); }
+  .btn-logout { width:100%; padding:10px; background:#E2D6C1; color:var(--charcoal); border:2.5px solid var(--charcoal); border-radius:12px; font-weight:800; font-size:13px; cursor:pointer; box-shadow:3px 3px 0px var(--charcoal); text-transform:uppercase; }
+  .btn-save { width:100%; padding:12px; background:var(--mustard); border:3px solid var(--charcoal); border-radius:14px; font-weight:800; font-size:16px; cursor:pointer; box-shadow:3px 4px 0px var(--charcoal); text-transform:uppercase; color:#000; font-family:'Bebas Neue', sans-serif; letter-spacing:1px; }
+  .btn-save:active { transform:translate(2px,2px); box-shadow:1px 2px 0px var(--charcoal); }
+  .feedback-msg { font-size:12px; font-weight:700; text-align:center; }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <a href="drawstop-menu.html" class="btn-back">⬅ Voltar</a>
+      <h1 class="header-title">CONFIGURAÇÕES</h1>
+      <div style="width:70px;"></div>
+    </div>
+
+    <div class="card-box">
+      <h2 class="section-title">👤 INFORMAÇÕES DA CONTA</h2>
+      <div class="account-info-box">
+        <div class="account-avatar" id="accAvatar" style="overflow:hidden;">✏️</div>
+        <div class="account-details">
+          <div class="account-name" id="accName">Carregando...</div>
+          <div class="account-email" id="accEmail"></div>
+          <div class="account-id" id="accId"></div>
+        </div>
+      </div>
+      <div id="admPhotoUploadBox" style="display:none; margin-top:10px;">
+        <label class="field-label">👑 Foto ou GIF de perfil (exclusivo ADM)</label>
+        <input type="file" id="admPhotoInput" accept="image/*" style="display:none;" onchange="uploadAdmPhoto(this.files[0])">
+        <button class="btn-back" style="background:var(--mustard); width:100%; text-align:center;" onclick="document.getElementById('admPhotoInput').click()">📷 Trocar por foto/GIF real</button>
+      </div>
+    </div>
+
+    <div class="card-box">
+      <h2 class="section-title">🎨 TEMA & APARÊNCIA</h2>
+      <label class="checkbox-row">
+        <span>🌙 Ativar Modo Escuro (Dark Mode)</span>
+        <input type="checkbox" id="chkDarkMode" onchange="toggleDarkMode(this.checked)">
+      </label>
+      <div class="setting-row">
+        <div class="setting-label">Qualidade dos Gráficos:</div>
+        <select class="select-custom" id="selGraphics">
+          <option value="high">Alta (Animações & Partículas)</option>
+          <option value="low">Econômica (Melhor Desempenho)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card-box">
+      <h2 class="section-title">🔊 ÁUDIO & SONS</h2>
+      <div class="setting-row">
+        <div class="setting-label"><span>🎵 Música de Fundo (BGM)</span><span id="bgmVal">80%</span></div>
+        <input type="range" class="range-slider" min="0" max="100" value="80" id="bgmSlider" oninput="document.getElementById('bgmVal').innerText = this.value + '%'">
+      </div>
+      <div class="setting-row">
+        <div class="setting-label"><span>🔔 Efeitos Sonoros (SFX)</span><span id="sfxVal">100%</span></div>
+        <input type="range" class="range-slider" min="0" max="100" value="100" id="sfxSlider" oninput="document.getElementById('sfxVal').innerText = this.value + '%'">
+      </div>
+      <label class="checkbox-row"><span>🎧 Música ambiente calma durante as partidas</span><input type="checkbox" id="chkAmbientMusic" checked></label>
+      <button class="btn-back" style="width:100%; text-align:center; margin-top:6px;" onclick="testAmbientMusic()">▶️ Ouvir prévia</button>
+    </div>
+
+    <div class="card-box">
+      <h2 class="section-title">🌍 IDIOMA</h2>
+      <select class="select-custom" id="selLanguage">
+        <option value="pt">🇧🇷 Português</option>
+        <option value="en">🇺🇸 English</option>
+        <option value="es">🇪🇸 Español</option>
+        <option value="zh">🇨🇳 中文 (Chinês)</option>
+        <option value="fr">🇫🇷 Français</option>
+        <option value="ru">🇷🇺 Русский</option>
+        <option value="ar">🇸🇦 العربية</option>
+      </select>
+      <div class="feedback-msg" style="text-align:left; opacity:.7;">⚠️ Tradução ainda cobre apenas as telas principais — vamos expandir aos poucos.</div>
+    </div>
+
+    <div class="card-box">
+      <h2 class="section-title">♿ ACESSIBILIDADE & TÁTIL</h2>
+      <label class="checkbox-row"><span>📳 Vibração Tátil (Feedback no Celular)</span><input type="checkbox" id="chkVibrate" checked></label>
+      <label class="checkbox-row"><span>🗣️ Leitor de Voz (Narrar Letras do Stop)</span><input type="checkbox" id="chkTTS"></label>
+      <div class="setting-row">
+        <div class="setting-label">Filtro de Modo Daltônico:</div>
+        <select class="select-custom" id="selColorblind">
+          <option value="none">Padrão</option>
+          <option value="protanopia">Protanopia (Vermelho)</option>
+          <option value="deuteranopia">Deuteranopia (Verde)</option>
+          <option value="tritanopia">Tritanopia (Azul)</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="card-box">
+      <h2 class="section-title">🔔 NOTIFICAÇÕES</h2>
+      <label class="checkbox-row"><span>👥 Pedidos de amizade</span><input type="checkbox" id="notifFriend"></label>
+      <label class="checkbox-row"><span>🎲 Convites de sala</span><input type="checkbox" id="notifInvite"></label>
+      <label class="checkbox-row"><span>🎮 Início de partida</span><input type="checkbox" id="notifGame"></label>
+      <label class="checkbox-row"><span>👑 Avisos do ADM</span><input type="checkbox" id="notifAdmin"></label>
+    </div>
+
+    <div class="card-box">
+      <h2 class="section-title">💬 CHAT & PRIVACIDADE</h2>
+      <div class="setting-row">
+        <div class="setting-label">Filtro de Palavras Profanas:</div>
+        <select class="select-custom" id="selCensor">
+          <option value="strict">Rigoroso (Ocultar Tudo)</option>
+          <option value="moderate">Moderado</option>
+          <option value="off">Desativado</option>
+        </select>
+      </div>
+      <div class="setting-row">
+        <div class="setting-label">Quem pode mandar convites de jogo:</div>
+        <select class="select-custom" id="selPrivacy">
+          <option value="everyone">Todos os Jogadores</option>
+          <option value="friends">Apenas Amigos</option>
+          <option value="nobody">Ninguém</option>
+        </select>
+      </div>
+      <label class="checkbox-row"><span>🔕 Modo Não Perturbe (Sem avisos em partida)</span><input type="checkbox" id="chkDND"></label>
+    </div>
+
+    <div class="card-box adm-box" id="admCodeBox">
+      <h2 class="section-title">👑 CÓDIGO DE ADMINISTRADOR</h2>
+      <div style="font-size:12px; font-weight:600;">Recebeu um código de acesso ADM? Digite abaixo para ativar:</div>
+      <div style="display:flex; gap:8px;">
+        <input type="text" id="admCodeInput" class="select-custom" placeholder="Digite o código (ex: A1B2C3D4)" style="flex:1; text-transform:uppercase;">
+        <button class="btn-back" style="background:var(--mustard);" onclick="redeemAdmCode()">Ativar</button>
+      </div>
+      <div class="feedback-msg" id="admCodeFeedback"></div>
+    </div>
+
+    <div class="card-box adm-box" id="admBox" style="display:none;">
+      <h2 class="section-title">👑 STATUS DE ADMINISTRADOR</h2>
+      <div style="font-size:13px; font-weight:700; color:var(--green);" id="admStatusText">✅ Você é um administrador do DrawStop.</div>
+      <a href="drawstop-painel-adm.html" class="btn-back" style="background:var(--mustard); text-align:center;">Abrir Painel ADM</a>
+    </div>
+
+    <div class="card-box danger-zone">
+      <h2 class="section-title" style="color:var(--brick);">⚠️ GERENCIAR CONTA</h2>
+      <button class="btn-logout" onclick="logoutAccount()">🚪 Sair da Conta</button>
+      <button class="btn-danger" onclick="deleteAccount()">🗑️ Excluir Conta Definitivamente</button>
+    </div>
+
+    <button class="btn-save" onclick="saveAllSettings()">💾 SALVAR CONFIGURAÇÕES</button>
+    <div class="feedback-msg" id="feedback"></div>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  let myProfile = null;
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+
+    myProfile = await dsGetProfile();
+    const s = myProfile.settings || {};
+
+    document.getElementById('accAvatar').innerHTML = myProfile.avatar_url
+      ? `<img src="${myProfile.avatar_url}" style="width:100%; height:100%; object-fit:cover;">`
+      : (myProfile.avatar_emoji || '🎨');
+    document.getElementById('accName').innerText = myProfile.display_name;
+    document.getElementById('accEmail').innerText = session.user.email || (myProfile.is_guest ? 'Conta de visitante' : '');
+    document.getElementById('accId').innerText = 'ID: ' + myProfile.friend_code;
+
+    if (dsIsAdminActive(myProfile)) {
+      document.getElementById('admPhotoUploadBox').style.display = 'block';
+    }
+
+    if (dsIsAdminActive(myProfile)) {
+      document.getElementById('admBox').style.display = 'flex';
+      const levelName = DS_ADMIN_LEVELS[myProfile.admin_level] || 'Administrador';
+      const expiryText = myProfile.admin_expires_at
+        ? `até ${new Date(myProfile.admin_expires_at).toLocaleDateString('pt-BR')}`
+        : 'permanente';
+      document.getElementById('admStatusText').innerText = `✅ Você é ${levelName} (${expiryText}).`;
+    }
+
+    document.getElementById('bgmSlider').value = s.bgm ?? 80;
+    document.getElementById('bgmVal').innerText = (s.bgm ?? 80) + '%';
+    document.getElementById('sfxSlider').value = s.sfx ?? 100;
+    document.getElementById('sfxVal').innerText = (s.sfx ?? 100) + '%';
+    document.getElementById('selGraphics').value = s.graphics || 'high';
+    document.getElementById('chkVibrate').checked = s.vibrate !== false;
+    document.getElementById('chkTTS').checked = !!s.tts;
+    document.getElementById('selColorblind').value = s.colorblind || 'none';
+    document.getElementById('selCensor').value = s.censor || 'strict';
+    document.getElementById('selPrivacy').value = s.invite_privacy || 'everyone';
+    document.getElementById('chkDND').checked = !!s.dnd;
+    document.getElementById('notifFriend').checked = s.notif_friend_request !== false;
+    document.getElementById('notifInvite').checked = s.notif_room_invite !== false;
+    document.getElementById('notifGame').checked = s.notif_game_start !== false;
+    document.getElementById('notifAdmin').checked = s.notif_admin !== false;
+    document.getElementById('chkAmbientMusic').checked = s.ambient_music !== false;
+    document.getElementById('selLanguage').value = s.language || 'pt';
+
+    const dark = localStorage.getItem('drawstop_darkmode') === 'true';
+    document.getElementById('chkDarkMode').checked = dark;
+    if (dark) document.body.classList.add('dark-mode');
+  });
+
+  async function uploadAdmPhoto(file) {
+    if (!file) return;
+    const feedback = document.getElementById('feedback');
+    feedback.innerText = 'Enviando...';
+    const path = `${myProfile.id}/avatar-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error } = await dsClient.storage.from('avatars').upload(path, file, { upsert: true });
+    if (error) { feedback.innerText = '❌ ' + error.message; feedback.style.color = 'var(--brick)'; return; }
+    const { data: pub } = dsClient.storage.from('avatars').getPublicUrl(path);
+    await dsClient.from('profiles').update({ avatar_url: pub.publicUrl }).eq('id', myProfile.id);
+    myProfile.avatar_url = pub.publicUrl;
+    document.getElementById('accAvatar').innerHTML = `<img src="${pub.publicUrl}" style="width:100%; height:100%; object-fit:cover;">`;
+    feedback.innerText = '✅ Foto atualizada!';
+    feedback.style.color = 'var(--green)';
+  }
+
+  function toggleDarkMode(isDark) {
+    document.body.classList.toggle('dark-mode', isDark);
+    localStorage.setItem('drawstop_darkmode', isDark ? 'true' : 'false');
+  }
+
+  async function saveAllSettings() {
+    const newSettings = {
+      bgm: parseInt(document.getElementById('bgmSlider').value),
+      sfx: parseInt(document.getElementById('sfxSlider').value),
+      graphics: document.getElementById('selGraphics').value,
+      vibrate: document.getElementById('chkVibrate').checked,
+      tts: document.getElementById('chkTTS').checked,
+      colorblind: document.getElementById('selColorblind').value,
+      censor: document.getElementById('selCensor').value,
+      invite_privacy: document.getElementById('selPrivacy').value,
+      dnd: document.getElementById('chkDND').checked,
+      notif_friend_request: document.getElementById('notifFriend').checked,
+      notif_room_invite: document.getElementById('notifInvite').checked,
+      notif_game_start: document.getElementById('notifGame').checked,
+      notif_admin: document.getElementById('notifAdmin').checked,
+      ambient_music: document.getElementById('chkAmbientMusic').checked,
+      language: document.getElementById('selLanguage').value,
+    };
+
+    const { error } = await dsClient.from('profiles').update({ settings: newSettings }).eq('id', myProfile.id);
+    const feedback = document.getElementById('feedback');
+    if (error) {
+      feedback.innerText = '❌ Erro ao salvar: ' + error.message;
+      feedback.style.color = 'var(--brick)';
+      return;
+    }
+    feedback.innerText = '✅ Configurações salvas com sucesso!';
+    feedback.style.color = 'var(--green)';
+  }
+
+  async function redeemAdmCode() {
+    const code = document.getElementById('admCodeInput').value.trim();
+    const feedback = document.getElementById('admCodeFeedback');
+    if (!code) { feedback.innerText = 'Digite um código!'; feedback.style.color = 'var(--brick)'; return; }
+
+    const { data, error } = await dsClient.rpc('redeem_admin_code', { code_input: code });
+
+    if (error || !data || !data.success) {
+      feedback.innerText = '❌ ' + (data?.error || error?.message || 'Código inválido.');
+      feedback.style.color = 'var(--brick)';
+      return;
+    }
+
+    feedback.innerText = `✅ Código ativado! Você agora é ${DS_ADMIN_LEVELS[data.level]}.`;
+    feedback.style.color = 'var(--green)';
+    dsUnlockAchievement(myProfile.id, 'admin');
+
+    if (data.message) {
+      setTimeout(() => alert(`👑 ${data.message}`), 300);
+    }
+
+    myProfile = await dsGetProfile();
+    document.getElementById('admCodeInput').value = '';
+
+    if (dsIsAdminActive(myProfile)) {
+      document.getElementById('admBox').style.display = 'flex';
+      const levelName = DS_ADMIN_LEVELS[myProfile.admin_level] || 'Administrador';
+      const expiryText = myProfile.admin_expires_at ? `até ${new Date(myProfile.admin_expires_at).toLocaleDateString('pt-BR')}` : 'permanente';
+      document.getElementById('admStatusText').innerText = `✅ Você é ${levelName} (${expiryText}).`;
+    }
+  }
+
+  let _previewPlaying = false;
+  function testAmbientMusic() {
+    if (_previewPlaying) { dsStopAmbientMusic(); _previewPlaying = false; return; }
+    dsPlayAmbientMusic((document.getElementById('bgmSlider').value || 80) / 100);
+    _previewPlaying = true;
+    setTimeout(() => { dsStopAmbientMusic(); _previewPlaying = false; }, 8000);
+  }
+
+  async function logoutAccount() {
+    if (confirm('Deseja realmente sair da sua conta?')) await dsLogout();
+  }
+
+  async function deleteAccount() {
+    const confirmDelete = confirm('⚠️ ATENÇÃO: Esta ação é irreversível!\nTodos os seus dados serão apagados.\n\nDeseja excluir a conta permanentemente?');
+    if (!confirmDelete) return;
+
+    await dsClient.from('profiles').delete().eq('id', myProfile.id);
+    await dsClient.auth.signOut();
+    alert('Seus dados foram excluídos.');
+    window.location.href = 'login.html';
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Criar Sala</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --paper:#EDE4D2; --paper-2:#E3D6BC; --paper-deep:#D8C8A6; --ink:#1F3A5C; --ink-light:#345480;
+    --brick:#B23B2E; --mustard:#D9A404; --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:'Poppins',sans-serif; color:var(--charcoal); background:var(--paper); overflow-x:hidden; }
+  body { display:flex; flex-direction:column; align-items:center; padding:15px 12px 60px; position:relative; }
+  body::before {
+    content:''; position:fixed; top:0; left:0; right:0; bottom:0;
+    background-image: linear-gradient(90deg, transparent 79px, #ab4747 79px, #ab4747 81px, transparent 81px),
+      linear-gradient(var(--paper-deep) 1px, transparent 1px);
+    background-size: 100% 100%, 100% 28px; opacity:.35; z-index:-2; pointer-events:none;
+  }
+  .container { width:100%; max-width:480px; display:flex; flex-direction:column; gap:16px; }
+  .top-bar { display:flex; justify-content:space-between; align-items:center; width:100%; }
+  .btn-back {
+    background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:8px 16px;
+    font-weight:700; color:var(--charcoal); text-decoration:none; box-shadow:3px 3px 0px var(--charcoal); cursor:pointer;
+  }
+  .header-title { font-family:'Bebas Neue',sans-serif; font-size:40px; margin:0; }
+  .subtitle { text-align:center; color:var(--ink-light); font-weight:600; margin-top:-10px; }
+
+  .card-box {
+    background:var(--cream); border:3px solid var(--charcoal); border-radius:20px;
+    box-shadow:4px 6px 0px var(--charcoal); padding:20px; display:flex; flex-direction:column; gap:18px;
+  }
+
+  .field-label { font-weight:800; font-size:14px; margin-bottom:6px; display:block; }
+  .input-field, .select-field {
+    width:100%; padding:12px 14px; border:2.5px solid var(--charcoal); border-radius:12px;
+    font-family:inherit; font-weight:700; font-size:14px; background:#FFF; color:#000; outline:none;
+  }
+
+  .mode-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .mode-card {
+    background:var(--paper-2); border:2.5px solid var(--charcoal); border-radius:14px;
+    padding:16px 6px; text-align:center; cursor:pointer; font-weight:800; font-size:13px;
+  }
+  .mode-card .emoji { font-size:26px; display:block; margin-bottom:6px; }
+  .mode-card.active { background:var(--mustard); box-shadow:3px 4px 0px var(--charcoal); }
+
+  .grid-2 { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+
+  .letters-grid { display:grid; grid-template-columns:repeat(5,1fr); gap:8px; }
+  .letter-chip {
+    background:var(--green); color:#FFF; border:2px solid var(--charcoal); border-radius:50%;
+    aspect-ratio:1; display:flex; align-items:center; justify-content:center; font-weight:800; cursor:pointer;
+    font-size:14px; user-select:none;
+  }
+  .letter-chip.excluded { background:#999; color:#ccc; text-decoration:line-through; opacity:.6; }
+  .letters-info { font-size:12px; color:var(--ink-light); font-weight:600; text-align:center; }
+
+  .privacy-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+  .privacy-opt {
+    background:var(--paper-2); border:2.5px solid var(--charcoal); border-radius:30px;
+    padding:10px 4px; text-align:center; font-weight:800; font-size:12px; cursor:pointer;
+  }
+  .privacy-opt.active { background:var(--mustard); }
+
+  .password-box { display:none; }
+  .password-box.visible { display:block; }
+
+  .friends-invite-grid { display:flex; flex-wrap:wrap; gap:8px; }
+  .friend-chip {
+    background:var(--paper-2); border:2px solid var(--charcoal); border-radius:20px;
+    padding:6px 14px; font-weight:700; font-size:12px; cursor:pointer;
+  }
+  .friend-chip.selected { background:var(--green); color:#FFF; }
+
+  .btn-create {
+    width:100%; padding:16px; background:var(--brick); color:#FFF; border:3px solid var(--charcoal);
+    border-radius:16px; font-weight:800; font-size:16px; cursor:pointer; box-shadow:3px 5px 0px var(--charcoal);
+    text-transform:uppercase;
+  }
+  .btn-create:active { transform:translate(2px,3px); box-shadow:1px 2px 0px var(--charcoal); }
+  .btn-create:disabled { opacity:.6; cursor:not-allowed; }
+
+  .feedback-msg { text-align:center; font-size:13px; font-weight:700; min-height:18px; }
+  .feedback-msg.error { color:var(--brick); }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <span style="font-family:'Caveat',cursive; font-size:26px; color:var(--brick);">Draw<b style="color:var(--brick); background:var(--brick); color:#FFF; padding:0 6px; border-radius:6px; font-family:'Bebas Neue',sans-serif;">STOP</b></span>
+      <a href="drawstop-menu.html" class="btn-back">← Voltar ao menu</a>
+    </div>
+
+    <h1 class="header-title">CRIAR SALA</h1>
+    <div class="subtitle">Configure a partida do jeito que você quiser</div>
+
+    <div class="card-box">
+
+      <div>
+        <label class="field-label">Nome da sala</label>
+        <input type="text" id="roomName" class="input-field" placeholder="Ex: Sala do LápisMágico" maxlength="30">
+      </div>
+
+      <div>
+        <label class="field-label">Modo de jogo</label>
+        <div class="mode-grid" id="modeGrid">
+          <div class="mode-card active" data-mode="gartic" onclick="selectMode('gartic')">
+            <span class="emoji">✏️</span> Draw
+          </div>
+          <div class="mode-card" data-mode="stop" onclick="selectMode('stop')">
+            <span class="emoji">🛑</span> Stop
+          </div>
+          <div class="mode-card" data-mode="stop_desenhado" onclick="selectMode('stop_desenhado')">
+            <span class="emoji">🎨</span> Stop Desenhado
+          </div>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label class="field-label">Número de rodadas</label>
+          <select id="numRounds" class="select-field">
+            <option>3</option><option selected>5</option><option>8</option><option>10</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Tempo por rodada</label>
+          <select id="roundTime" class="select-field">
+            <option value="30">30s</option><option value="60" selected>60s</option>
+            <option value="90">90s</option><option value="120">120s</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid-2">
+        <div>
+          <label class="field-label">Máximo de jogadores</label>
+          <select id="maxPlayers" class="select-field">
+            <option>4</option><option>6</option><option selected>8</option><option>10</option><option>12</option>
+          </select>
+        </div>
+        <div id="garticOnlyField">
+          <label class="field-label">Categoria de palavras</label>
+          <select id="wordCategory" class="select-field">
+            <option value="todas" selected>Todas</option>
+            <option value="animais">Animais</option>
+            <option value="objetos">Objetos</option>
+            <option value="filmes">Filmes e Séries</option>
+            <option value="comidas">Comidas</option>
+            <option value="profissoes">Profissões</option>
+            <option value="lugares">Lugares</option>
+            <option value="personagens">Personagens</option>
+            <option value="esportes">Esportes</option>
+            <option value="natureza">Natureza</option>
+            <option value="tecnologia">Tecnologia</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="pointsGoalField">
+        <label class="field-label">Objetivo de pontos <span style="font-weight:500; opacity:.7;">(customizado — a partida acaba ao atingir)</span></label>
+        <input type="number" id="pointsGoal" class="input-field" value="500" min="10" max="99999" step="10">
+      </div>
+
+      <div id="lettersField" style="display:none;">
+        <label class="field-label">Letras do jogo <span style="font-weight:500; opacity:.7;">(clique para excluir da partida)</span></label>
+        <div class="letters-grid" id="lettersGrid"></div>
+        <div class="letters-info" id="lettersInfo">26 de 26 letras selecionadas</div>
+      </div>
+
+      <div id="themeModeField" style="display:none;">
+        <label class="field-label">Temas da partida</label>
+        <div class="privacy-grid" style="margin-bottom:10px;">
+          <div class="privacy-opt active" data-theme="default" onclick="selectThemeMode('default')">Padrão do jogo</div>
+          <div class="privacy-opt" data-theme="custom" onclick="selectThemeMode('custom')">Personalizado</div>
+        </div>
+        <div id="customThemesBox" style="display:none;">
+          <div class="letters-info" style="margin-bottom:8px;">Digite entre 6 e 16 temas (um por linha). Ex: Nome, CEP, Meu amigo é..., Jogador de futebol</div>
+          <textarea id="customThemesInput" rows="6" style="width:100%; padding:10px; border:2.5px solid var(--charcoal); border-radius:12px; font-family:inherit; font-size:13px;" placeholder="Nome&#10;CEP&#10;Meu amigo é...&#10;Jogador de futebol&#10;..."></textarea>
+          <div class="letters-info" id="customThemesCount">0 temas digitados</div>
+        </div>
+      </div>
+
+      <div>
+        <label class="field-label">Privacidade</label>
+        <div class="privacy-grid" id="privacyGrid">
+          <div class="privacy-opt active" data-privacy="public" onclick="selectPrivacy('public')">Pública</div>
+          <div class="privacy-opt" data-privacy="friends" onclick="selectPrivacy('friends')">Só amigos</div>
+          <div class="privacy-opt" data-privacy="private" onclick="selectPrivacy('private')">Privada (com senha)</div>
+        </div>
+        <div class="password-box" id="passwordBox" style="margin-top:10px;">
+          <input type="password" id="roomPassword" class="input-field" placeholder="Defina a senha da sala" minlength="4">
+        </div>
+      </div>
+
+      <div>
+        <label class="field-label">Convidar amigos <span style="font-weight:500; opacity:.7;">(opcional)</span></label>
+        <div class="friends-invite-grid" id="friendsGrid">
+          <div class="letters-info">Carregando amigos...</div>
+        </div>
+      </div>
+
+    </div>
+
+    <button class="btn-create" id="btnCreateRoom" onclick="createRoom()">🎨 Criar sala e entrar no lobby</button>
+    <div class="feedback-msg" id="feedback"></div>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  let selectedMode = 'gartic';
+  let selectedPrivacy = 'public';
+  let excludedLetters = new Set();
+  let selectedFriends = new Set();
+
+  const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('');
+
+  function renderLetters() {
+    const grid = document.getElementById('lettersGrid');
+    grid.innerHTML = ALPHABET.map(l => `
+      <div class="letter-chip ${excludedLetters.has(l) ? 'excluded' : ''}" onclick="toggleLetter('${l}')">${l}</div>
+    `).join('');
+    const included = 26 - excludedLetters.size;
+    document.getElementById('lettersInfo').innerText = `${included} de 26 letras selecionadas — as riscadas não entram na partida`;
+  }
+
+  function toggleLetter(l) {
+    if (excludedLetters.has(l)) excludedLetters.delete(l);
+    else excludedLetters.add(l);
+    renderLetters();
+  }
+
+  function selectMode(mode) {
+    selectedMode = mode;
+    document.querySelectorAll('.mode-card').forEach(el => el.classList.toggle('active', el.dataset.mode === mode));
+
+    const isStopLike = (mode === 'stop' || mode === 'stop_desenhado');
+    document.getElementById('lettersField').style.display = isStopLike ? 'block' : 'none';
+    document.getElementById('themeModeField').style.display = isStopLike ? 'block' : 'none';
+    document.getElementById('garticOnlyField').style.display = (mode === 'gartic') ? 'block' : 'none';
+
+    if (isStopLike) renderLetters();
+  }
+
+  let selectedThemeMode = 'default';
+  function selectThemeMode(mode) {
+    selectedThemeMode = mode;
+    document.querySelectorAll('#themeModeField .privacy-opt').forEach(el => el.classList.toggle('active', el.dataset.theme === mode));
+    document.getElementById('customThemesBox').style.display = mode === 'custom' ? 'block' : 'none';
+  }
+
+  document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'customThemesInput') {
+      const lines = e.target.value.split('\n').map(l => l.trim()).filter(Boolean);
+      document.getElementById('customThemesCount').innerText = `${lines.length} temas digitados (mínimo 6, máximo 16)`;
+    }
+  });
+
+  function selectPrivacy(p) {
+    selectedPrivacy = p;
+    document.querySelectorAll('.privacy-opt').forEach(el => el.classList.toggle('active', el.dataset.privacy === p));
+    document.getElementById('passwordBox').classList.toggle('visible', p === 'private');
+  }
+
+  async function loadFriends() {
+    const session = await dsGetSession();
+    const { data: friendships } = await dsClient
+      .from('friendships')
+      .select('requester_id, addressee_id, requester:requester_id(display_name,friend_code), addressee:addressee_id(display_name,friend_code)')
+      .eq('status', 'accepted')
+      .or(`requester_id.eq.${session.user.id},addressee_id.eq.${session.user.id}`);
+
+    const grid = document.getElementById('friendsGrid');
+    if (!friendships || friendships.length === 0) {
+      grid.innerHTML = '<div class="letters-info">Você ainda não tem amigos adicionados.</div>';
+      return;
+    }
+
+    grid.innerHTML = friendships.map(f => {
+      const isRequester = f.requester_id === session.user.id;
+      const friend = isRequester ? f.addressee : f.requester;
+      const friendId = isRequester ? f.addressee_id : f.requester_id;
+      return `<div class="friend-chip" data-id="${friendId}" onclick="toggleFriend('${friendId}', this)">${friend.display_name}</div>`;
+    }).join('');
+  }
+
+  function toggleFriend(id, el) {
+    if (selectedFriends.has(id)) { selectedFriends.delete(id); el.classList.remove('selected'); }
+    else { selectedFriends.add(id); el.classList.add('selected'); }
+  }
+
+  async function createRoom() {
+    const session = await dsRequireAuth();
+    if (!session) return;
+
+    const name = document.getElementById('roomName').value.trim() || 'Sala sem nome';
+    const btn = document.getElementById('btnCreateRoom');
+    const feedback = document.getElementById('feedback');
+
+    if (selectedPrivacy === 'private') {
+      const pass = document.getElementById('roomPassword').value;
+      if (!pass || pass.length < 4) {
+        feedback.innerText = 'Defina uma senha com no mínimo 4 caracteres!';
+        feedback.className = 'feedback-msg error';
+        return;
+      }
+    }
+
+    const isStopLike = (selectedMode === 'stop' || selectedMode === 'stop_desenhado');
+    const finalLetters = ALPHABET.filter(l => !excludedLetters.has(l));
+
+    if (isStopLike && finalLetters.length === 0) {
+      feedback.innerText = 'Selecione ao menos uma letra para a partida!';
+      feedback.className = 'feedback-msg error';
+      return;
+    }
+
+    let customCategories = null;
+    if (isStopLike && selectedThemeMode === 'custom') {
+      customCategories = document.getElementById('customThemesInput').value.split('\n').map(l => l.trim()).filter(Boolean);
+      if (customCategories.length < 6 || customCategories.length > 16) {
+        feedback.innerText = `Temas personalizados precisam ter entre 6 e 16 (você digitou ${customCategories.length})!`;
+        feedback.className = 'feedback-msg error';
+        return;
+      }
+    }
+
+    btn.disabled = true;
+    feedback.innerText = 'Criando sala...';
+    feedback.className = 'feedback-msg';
+
+    const roomData = {
+      name,
+      mode: selectedMode,
+      host_id: session.user.id,
+      max_players: parseInt(document.getElementById('maxPlayers').value),
+      num_rounds: parseInt(document.getElementById('numRounds').value),
+      round_time: parseInt(document.getElementById('roundTime').value),
+      privacy: selectedPrivacy,
+    };
+
+    roomData.points_goal = parseInt(document.getElementById('pointsGoal').value) || 500;
+
+    if (selectedMode === 'gartic') {
+      roomData.word_category = document.getElementById('wordCategory').value;
+    } else {
+      roomData.letters = finalLetters;
+      roomData.theme_mode = selectedThemeMode;
+      if (customCategories) roomData.custom_categories = customCategories;
+    }
+
+    if (selectedPrivacy === 'private') {
+      // Hash simples no cliente (a validação séria acontece via RPC/edge function no servidor)
+      const pass = document.getElementById('roomPassword').value;
+      roomData.password_hash = await sha256(pass);
+    }
+
+    const { data: room, error } = await dsClient.from('rooms').insert(roomData).select().single();
+
+    if (error) {
+      feedback.innerText = '❌ Erro ao criar sala: ' + error.message;
+      feedback.className = 'feedback-msg error';
+      btn.disabled = false;
+      return;
+    }
+
+    // Entra automaticamente na própria sala
+    await dsClient.from('room_players').insert({ room_id: room.id, player_id: session.user.id });
+
+    // Envia convites reais + notificação para cada amigo selecionado
+    if (selectedFriends.size > 0) {
+      const myProfileData = await dsGetProfile();
+      for (const friendId of selectedFriends) {
+        await dsClient.from('room_invites').insert({ room_id: room.id, from_id: session.user.id, to_id: friendId });
+        await dsSendNotification(
+          friendId,
+          'room_invite',
+          `${myProfileData.display_name} te convidou para uma sala!`,
+          `${room.name} · ${selectedMode === 'gartic' ? 'Gartic' : selectedMode === 'stop' ? 'Stop' : 'Stop Desenhado'}`,
+          `drawstop-lobby.html?room=${room.id}`
+        );
+      }
+    }
+
+    await dsSetStatus('ingame');
+    dsUnlockAchievement(session.user.id, 'first_room');
+    window.location.href = `drawstop-lobby.html?room=${room.id}`;
+  }
+
+  async function sha256(text) {
+    const enc = new TextEncoder().encode(text);
+    const buf = await crypto.subtle.digest('SHA-256', enc);
+    return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+    loadFriends();
+  });
+</script>
+</body>
+</html>
