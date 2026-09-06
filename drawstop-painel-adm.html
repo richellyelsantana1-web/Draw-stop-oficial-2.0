@@ -1,0 +1,896 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Painel ADM</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root { --paper:#EDE4D2; --paper-2:#E3D6BC; --ink:#1F3A5C; --brick:#B23B2E; --mustard:#D9A404; --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:'Poppins',sans-serif; color:var(--charcoal); background:var(--paper); }
+  body { display:flex; flex-direction:column; align-items:center; padding:15px 12px 50px; }
+  .container { width:100%; max-width:600px; display:flex; flex-direction:column; gap:16px; }
+  .top-bar { display:flex; justify-content:space-between; align-items:center; }
+  .btn-back { background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:6px 14px; font-weight:700; text-decoration:none; color:var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); font-size:13px; cursor:pointer; }
+  .header-title { font-family:'Bebas Neue',sans-serif; font-size:30px; text-align:center; margin:0; }
+  .tabs-nav { display:flex; gap:5px; flex-wrap:wrap; }
+  .tab-btn { flex:1; min-width:70px; padding:8px 4px; background:var(--paper-2); border:2.5px solid var(--charcoal); border-radius:10px; font-weight:800; font-size:11px; cursor:pointer; box-shadow:2px 3px 0px var(--charcoal); text-align:center; }
+  .tab-btn.active { background:var(--mustard); transform:translateY(2px); box-shadow:1px 1px 0px var(--charcoal); }
+  .card-box { background:var(--cream); border:3px solid var(--mustard); border-radius:20px; box-shadow:4px 6px 0px var(--charcoal); padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .section-title { font-family:'Bebas Neue',cursive; font-size:20px; border-bottom:2px dashed var(--paper-2); padding-bottom:6px; margin:0; }
+  .search-input, .input-field, .select-field, textarea { width:100%; padding:10px 12px; border:2.5px solid var(--charcoal); border-radius:10px; font-weight:700; font-size:13px; background:#FFF; color:#000; outline:none; font-family:inherit; }
+  .field-label { font-weight:800; font-size:13px; display:block; margin:8px 0 4px; }
+  .user-row { display:flex; align-items:center; justify-content:space-between; background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:10px 12px; margin-bottom:8px; flex-wrap:wrap; gap:8px; }
+  .user-info { display:flex; align-items:center; gap:10px; }
+  .user-avatar { width:36px; height:36px; border-radius:8px; background:#FFF; border:2px solid var(--charcoal); display:flex; align-items:center; justify-content:center; font-size:16px; overflow:hidden; }
+  .user-avatar img { width:100%; height:100%; object-fit:cover; }
+  .user-name { font-weight:800; font-size:13px; }
+  .user-code { font-size:11px; color:var(--ink); font-weight:600; }
+  .badge-admin { font-size:9px; font-weight:900; background:linear-gradient(90deg,#F0BC2E,#D9A404); color:#3a2b00; padding:1px 6px; border-radius:6px; margin-left:4px; }
+  .badge-banned { font-size:9px; font-weight:900; background:var(--brick); color:#fff; padding:1px 6px; border-radius:6px; margin-left:4px; }
+  .badge-muted { font-size:9px; font-weight:900; background:#888; color:#fff; padding:1px 6px; border-radius:6px; margin-left:4px; }
+  .action-btn { padding:6px 9px; border:2px solid var(--charcoal); border-radius:8px; font-weight:800; font-size:10px; cursor:pointer; }
+  .btn-ban { background:var(--brick); color:#FFF; }
+  .btn-unban { background:var(--green); color:#FFF; }
+  .btn-promote { background:var(--mustard); color:#000; }
+  .btn-demote { background:#888; color:#FFF; }
+  .btn-edit { background:var(--ink); color:#FFF; }
+  .empty-msg { text-align:center; font-size:13px; font-weight:700; opacity:.7; padding:10px 0; }
+  .access-denied { text-align:center; padding:40px 20px; }
+  .ban-history-item { background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:12px; }
+  .ban-history-item.active-ban { border-color:var(--brick); }
+  .ban-history-item.resolved { opacity:.75; }
+  .ban-row { display:flex; justify-content:space-between; font-weight:700; }
+  .modal-overlay { position:fixed; inset:0; background:rgba(0,0,0,.6); display:none; justify-content:center; align-items:center; z-index:1000; padding:20px; }
+  .modal-overlay.active { display:flex; }
+  .modal-box { background:var(--cream); border:3px solid var(--charcoal); border-radius:14px; padding:22px; max-width:400px; width:100%; max-height:85vh; overflow-y:auto; }
+  .btn-primary { width:100%; padding:10px; background:var(--mustard); border:2px solid var(--charcoal); border-radius:8px; font-weight:800; cursor:pointer; margin-top:6px; }
+  .quick-actions-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:6px; margin-top:6px; }
+  .quick-btn { padding:8px 4px; border:2px solid var(--charcoal); border-radius:8px; font-weight:800; font-size:11px; cursor:pointer; background:var(--paper-2); }
+  .log-item { font-size:11px; background:var(--paper-2); border:1.5px solid var(--charcoal); border-radius:8px; padding:6px 10px; margin-bottom:6px; }
+  .announcement-type-badge { font-size:9px; font-weight:900; padding:2px 6px; border-radius:6px; }
+  .toggle-row-adm { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; margin-bottom:8px; }
+  .toggle-row-adm input { width:22px; height:22px; }
+  .stat-grid-adm { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; text-align:center; }
+  .stat-adm-box { background:var(--paper-2); border:2px solid var(--charcoal); border-radius:10px; padding:8px 4px; font-size:11px; }
+  .stat-adm-box b { font-family:'Bebas Neue',sans-serif; font-size:20px; display:block; }
+</style>
+</head>
+<body>
+
+  <div class="container" id="deniedView" style="display:none;">
+    <div class="access-denied">
+      <div style="font-size:48px;">🚫</div>
+      <h2>Acesso negado</h2>
+      <p>Esta área é exclusiva para administradores.</p>
+      <a href="drawstop-menu.html" class="btn-back">Voltar ao menu</a>
+    </div>
+  </div>
+
+  <div class="container" id="admView" style="display:none;">
+    <div class="top-bar">
+      <a href="drawstop-menu.html" class="btn-back">⬅ Voltar</a>
+      <h1 class="header-title">👑 PAINEL ADM</h1>
+      <div style="width:60px;"></div>
+    </div>
+
+    <div class="tabs-nav">
+      <button class="tab-btn active" id="tabUsers" onclick="switchTab('users')">👥 Jogadores</button>
+      <button class="tab-btn" id="tabBans" onclick="switchTab('bans')">🚫 Bans</button>
+      <button class="tab-btn" id="tabCodes" onclick="switchTab('codes')">🔑 Códigos</button>
+      <button class="tab-btn" id="tabAnnounce" onclick="switchTab('announce')">📢 Avisos</button>
+      <button class="tab-btn" id="tabRooms" onclick="switchTab('rooms')">🎲 Salas</button>
+      <button class="tab-btn" id="tabSystem" onclick="switchTab('system')">⚙️ Sistema</button>
+      <button class="tab-btn" id="tabSuggestions" onclick="switchTab('suggestions')">✨ Sugestões</button>
+      <button class="tab-btn" id="tabLog" onclick="switchTab('log')">📜 Log</button>
+    </div>
+
+    <!-- ===== JOGADORES ===== -->
+    <div id="viewUsers">
+      <div class="card-box">
+        <h2 class="section-title">Buscar jogador</h2>
+        <input type="text" id="searchInput" class="search-input" placeholder="Buscar por nome ou código..." oninput="filterUsers()">
+      </div>
+      <div class="card-box">
+        <h2 class="section-title">👥 Todos os jogadores (<span id="userCount">0</span>)</h2>
+        <div id="usersList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ===== BANS ===== -->
+    <div id="viewBans" style="display:none;">
+      <div class="card-box">
+        <h2 class="section-title">🚫 Histórico de banimentos</h2>
+        <div id="bansList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ===== CÓDIGOS ===== -->
+    <div id="viewCodes" style="display:none;">
+      <div class="card-box">
+        <h2 class="section-title">🔑 Gerar novo código de ADM</h2>
+        <label class="field-label">Nível do cargo</label>
+        <select id="codeLevel" class="search-input">
+          <option value="1">Moderador (nível 1)</option>
+          <option value="2">Administrador (nível 2)</option>
+          <option value="3">Diretor Supremo (nível 3)</option>
+          <option value="4">CEO (nível 4)</option>
+          <option value="5">Dono (nível 5)</option>
+        </select>
+        <label class="field-label">Duração do acesso</label>
+        <select id="codeDuration" class="search-input" onchange="toggleCustomDuration()">
+          <option value="permanent">Permanente</option>
+          <option value="1">1 dia</option>
+          <option value="7">7 dias</option>
+          <option value="30">30 dias</option>
+          <option value="custom">Personalizado (dias)</option>
+        </select>
+        <input type="number" id="codeDurationCustom" class="search-input" placeholder="Quantidade de dias" style="display:none;" min="1">
+        <label class="field-label">Mensagem ao ativar (opcional)</label>
+        <textarea id="codeMessage" rows="3" placeholder="Ex: Bem-vindo à equipe!"></textarea>
+        <button class="action-btn btn-promote" style="padding:10px; margin-top:10px;" onclick="generateAdmCode()">Gerar código</button>
+        <div id="generatedCodeResult" style="display:none; margin-top:10px; background:var(--paper-2); border:2px solid var(--charcoal); border-radius:10px; padding:12px; text-align:center;">
+          <div style="font-size:11px; font-weight:700;">Código gerado:</div>
+          <div id="generatedCodeText" style="font-family:'Bebas Neue',sans-serif; font-size:26px; letter-spacing:2px;"></div>
+          <button class="action-btn btn-promote" onclick="copyGeneratedCode()">Copiar</button>
+        </div>
+      </div>
+      <div class="card-box">
+        <h2 class="section-title">📋 Códigos gerados</h2>
+        <div id="codesList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ===== AVISOS GLOBAIS ===== -->
+    <div id="viewAnnounce" style="display:none;">
+      <div class="card-box">
+        <h2 class="section-title">📢 Criar aviso no menu de todos</h2>
+        <label class="field-label">Mensagem</label>
+        <textarea id="announceMsg" rows="2" placeholder="Ex: Manutenção programada às 22h!"></textarea>
+        <label class="field-label">Tipo</label>
+        <select id="announceType" class="search-input">
+          <option value="info">ℹ️ Informação</option>
+          <option value="warning">⚠️ Aviso</option>
+          <option value="maintenance">🔧 Manutenção</option>
+          <option value="event">🎉 Evento</option>
+        </select>
+        <button class="action-btn btn-promote" style="padding:10px;" onclick="createAnnouncement()">Publicar aviso</button>
+      </div>
+      <div class="card-box">
+        <h2 class="section-title">Avisos ativos</h2>
+        <div id="announcementsList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ===== SALAS EM ANDAMENTO ===== -->
+    <div id="viewRooms" style="display:none;">
+      <div class="card-box">
+        <h2 class="section-title">🎲 Salas ativas (<span id="roomCount">0</span>)</h2>
+        <div id="roomsAdminList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ===== SISTEMA ===== -->
+    <div id="viewSystem" style="display:none;">
+      <div class="card-box">
+        <h2 class="section-title">🏆 Gerenciar Ranking</h2>
+        <label class="field-label">Modo</label>
+        <select id="rankModeSelect" class="search-input">
+          <option value="gartic">Draw</option>
+          <option value="stop">Stop</option>
+          <option value="stopdesenhado">DrawStop</option>
+        </select>
+        <label class="field-label">Código do jogador (#DS-XXXX)</label>
+        <input type="text" id="rankTargetCode" class="input-field" placeholder="#DS-1234">
+        <div class="quick-actions-grid">
+          <button class="quick-btn" onclick="putPlayerFirst()">🥇 Colocar em 1º lugar</button>
+          <button class="quick-btn" onclick="setExactScore()">✏️ Definir pontuação exata</button>
+        </div>
+        <button class="action-btn btn-ban" style="padding:8px; margin-top:8px; width:100%;" onclick="resetLeaderboardMode()">🔄 Reiniciar ranking deste modo (zera todo mundo)</button>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">🎖️ Tag de rank manual (CEO/Dono)</h2>
+        <div class="letters-info" style="margin-bottom:8px;">Concede uma tag extra a qualquer jogador, SEM tirar a tag de quem já está no Top 10 de verdade — as duas aparecem juntas.</div>
+        <label class="field-label">Código do jogador (#DS-XXXX)</label>
+        <input type="text" id="customTagCode" class="input-field" placeholder="#DS-1234">
+        <label class="field-label">Texto da tag (deixe em branco para remover)</label>
+        <input type="text" id="customTagText" class="input-field" placeholder="Ex: Lenda do Draw">
+        <button class="action-btn btn-promote" style="padding:8px; margin-top:6px; width:100%;" onclick="setCustomRankTag()">Aplicar tag</button>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">🎫 Passe de Batalha</h2>
+        <div class="letters-info" style="margin-bottom:8px;">Reiniciar zera XP e nível de TODOS os jogadores na temporada atual do passe. Exclusivo CEO/Dono.</div>
+        <button class="action-btn btn-ban" style="padding:10px; width:100%;" onclick="resetBattlePassSeason()">🔄 Reiniciar temporada do passe</button>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">🔧 Modo Manutenção</h2>
+        <div class="toggle-row-adm"><span>Ativar modo manutenção (bloqueia login de não-ADMs)</span><input type="checkbox" id="maintenanceToggle" onchange="toggleMaintenance()"></div>
+        <label class="field-label">Mensagem exibida</label>
+        <textarea id="maintenanceMsg" rows="2"></textarea>
+        <button class="action-btn btn-promote" style="padding:8px; margin-top:6px;" onclick="saveMaintenanceMsg()">Salvar mensagem</button>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">📊 Estatísticas do site</h2>
+        <div class="stat-grid-adm" id="siteStats">Carregando...</div>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">🟢 Jogadores online agora</h2>
+        <div id="onlineList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">🏆 Ranking (Top 10 XP)</h2>
+        <div id="leaderboardList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">💰 XP em massa (todos os jogadores)</h2>
+        <div class="quick-actions-grid">
+          <button class="quick-btn" onclick="bulkXP(50)">+50 XP para todos</button>
+          <button class="quick-btn" onclick="bulkXP(100)">+100 XP para todos</button>
+          <button class="quick-btn" onclick="bulkXP(-50)">-50 XP de todos</button>
+          <button class="quick-btn" onclick="bulkXPCustom()">Quantidade personalizada</button>
+        </div>
+      </div>
+
+      <div class="card-box">
+        <h2 class="section-title">📣 Notificar TODOS os jogadores</h2>
+        <label class="field-label">Título</label>
+        <input type="text" id="notifyAllTitle" class="input-field">
+        <label class="field-label">Mensagem</label>
+        <textarea id="notifyAllBody" rows="2"></textarea>
+        <button class="action-btn btn-promote" style="padding:8px; margin-top:6px;" onclick="notifyAll()">Enviar para todos</button>
+      </div>
+    </div>
+
+    <!-- ===== SUGESTÕES MEGA ===== -->
+    <div id="viewSuggestions" style="display:none;">
+      <div class="card-box">
+        <h2 class="section-title">✨ Sugestões pendentes</h2>
+        <div id="suggestionsList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+    </div>
+
+    <!-- ===== LOG ===== -->
+    <div id="viewLog" style="display:none;">
+      <div class="card-box">
+        <h2 class="section-title">📜 Log de ações administrativas</h2>
+        <div id="logList"><div class="empty-msg">Carregando...</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: editar jogador (poder total) -->
+  <div class="modal-overlay" id="editModal">
+    <div class="modal-box">
+      <h3 style="margin-top:0;">✏️ Editar jogador</h3>
+      <div id="editTargetName" style="font-weight:800; margin-bottom:8px;"></div>
+
+      <label class="field-label">Nome de exibição</label>
+      <input type="text" id="editName" class="input-field">
+
+      <label class="field-label">Avatar (emoji)</label>
+      <input type="text" id="editEmoji" class="input-field" maxlength="4">
+
+      <label class="field-label">Nível</label>
+      <input type="number" id="editLevel" class="input-field" min="1">
+
+      <label class="field-label">XP</label>
+      <input type="number" id="editXP" class="input-field" min="0">
+
+      <button class="btn-primary" onclick="saveEditProfile()">Salvar alterações</button>
+
+      <div class="quick-actions-grid">
+        <button class="quick-btn" onclick="quickXP(50)">+50 XP</button>
+        <button class="quick-btn" onclick="quickXP(-50)">-50 XP</button>
+        <button class="quick-btn" onclick="quickLevel(1)">+1 Nível</button>
+        <button class="quick-btn" onclick="quickLevel(-1)">-1 Nível</button>
+        <button class="quick-btn" onclick="resetStats()">🔄 Resetar stats</button>
+        <button class="quick-btn" onclick="forceLogoutPlayer()">🚪 Forçar logout</button>
+        <button class="quick-btn" onclick="mutePlayerModal(10)">🔇 Mutar 10min</button>
+        <button class="quick-btn" onclick="mutePlayerModal(60)">🔇 Mutar 1h</button>
+        <button class="quick-btn" onclick="unmutePlayerModal()">🔊 Desmutar</button>
+        <button class="quick-btn" onclick="clearGalleryModal()">🖼️ Limpar galeria</button>
+        <button class="quick-btn" onclick="resetAvatarBannerModal()">🖼️ Resetar avatar/banner</button>
+        <button class="quick-btn" onclick="togglePrivateModal(true)">🔒 Forçar privado</button>
+        <button class="quick-btn" onclick="togglePrivateModal(false)">🔓 Forçar público</button>
+        <button class="quick-btn" onclick="regenerateCodeModal()">🔑 Gerar novo código amigo</button>
+        <button class="quick-btn" onclick="setCustomCodeModal()">🔑 Definir DS personalizada</button>
+        <button class="quick-btn" onclick="grantRoleDirectModal()">👑 Conceder cargo (sem código)</button>
+        <button class="quick-btn" id="btnSetSubscription" onclick="setSubscriptionTierModal()">🎫 Definir plano (Grátis/VIP/MEGA)</button>
+        <button class="quick-btn" onclick="grantAchievementModal()">🏆 Conceder conquista</button>
+        <button class="quick-btn" onclick="revokeAchievementModal()">🏆 Remover conquista</button>
+        <button class="quick-btn" onclick="sendDirectNotifModal()">📩 Enviar notificação</button>
+        <button class="quick-btn" style="background:var(--brick); color:#FFF;" onclick="deleteAccountModal()">🗑️ Excluir conta</button>
+        <button class="quick-btn" onclick="closeEditModal()">Fechar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: banir -->
+  <div class="modal-overlay" id="banModal">
+    <div class="modal-box">
+      <h3 style="margin-top:0;">🚫 Banir usuário</h3>
+      <label class="field-label">Motivo do banimento</label>
+      <textarea id="banReason" rows="3" placeholder="Explique o motivo do banimento..."></textarea>
+      <label class="field-label">Duração</label>
+      <select id="banDuration" class="select-field">
+        <option value="1">1 dia</option>
+        <option value="7">7 dias</option>
+        <option value="30">30 dias</option>
+        <option value="permanent">Permanente</option>
+      </select>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-primary" style="background:#E2D6C1;" onclick="closeBanModal()">Cancelar</button>
+        <button class="btn-primary" style="background:var(--brick); color:#FFF;" onclick="confirmBan()">Confirmar Banimento</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="modal-overlay" id="unbanModal">
+    <div class="modal-box">
+      <h3 style="margin-top:0;">🔓 Desbanir usuário</h3>
+      <label class="field-label">Motivo do desbanimento</label>
+      <textarea id="unbanReason" rows="3" placeholder="Explique o motivo..."></textarea>
+      <div style="display:flex; gap:8px;">
+        <button class="btn-primary" style="background:#E2D6C1;" onclick="closeUnbanModal()">Cancelar</button>
+        <button class="btn-primary" style="background:var(--green); color:#FFF;" onclick="confirmUnban()">Confirmar Desbanimento</button>
+      </div>
+    </div>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  let myProfile = null;
+  let allUsers = [];
+  let pendingBanUserId = null;
+  let pendingUnbanId = null;
+  let pendingEditUserId = null;
+  let lastGeneratedCode = '';
+
+  const LEVEL_NAMES = { 1: 'Moderador', 2: 'Administrador', 3: 'Diretor Supremo', 4: 'CEO', 5: 'Dono' };
+
+  function switchTab(tab) {
+    ['users','bans','codes','announce','rooms','system','suggestions','log'].forEach(t => {
+      document.getElementById('view' + t.charAt(0).toUpperCase() + t.slice(1)).style.display = t === tab ? 'block' : 'none';
+      document.getElementById('tab' + t.charAt(0).toUpperCase() + t.slice(1)).classList.toggle('active', t === tab);
+    });
+    if (tab === 'bans') loadBans();
+    if (tab === 'codes') loadCodes();
+    if (tab === 'announce') loadAnnouncements();
+    if (tab === 'rooms') loadRooms();
+    if (tab === 'system') loadSystemTab();
+    if (tab === 'suggestions') loadSuggestions();
+    if (tab === 'log') loadLog();
+  }
+
+  async function loadSuggestions() {
+    const { data } = await dsClient.from('word_suggestions').select('*, player:player_id(display_name, friend_code)').eq('status', 'pending').order('created_at', { ascending: true });
+    const list = document.getElementById('suggestionsList');
+    if (!data || data.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhuma sugestão pendente.</div>'; return; }
+
+    list.innerHTML = data.map(s => `
+      <div class="ban-history-item">
+        <div class="ban-row"><span>${s.player?.display_name || '—'} (${s.player?.friend_code || '—'})</span><span>${new Date(s.created_at).toLocaleDateString('pt-BR')}</span></div>
+        <div style="margin:6px 0;"><b>Categoria:</b> ${s.category} | <b>Palavra:</b> ${s.word}</div>
+        <textarea id="resp-${s.id}" rows="2" style="width:100%; padding:8px; border:2px solid var(--charcoal); border-radius:8px; font-family:inherit; margin-bottom:8px;" placeholder="Justificativa obrigatória..."></textarea>
+        <div style="display:flex; gap:8px;">
+          <button class="action-btn btn-unban" style="flex:1; padding:10px;" onclick="respondSuggestion('${s.id}', 'approved')">✅ APROVAR</button>
+          <button class="action-btn btn-ban" style="flex:1; padding:10px;" onclick="respondSuggestion('${s.id}', 'rejected')">❌ RECUSAR</button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function respondSuggestion(id, status) {
+    const response = document.getElementById(`resp-${id}`).value.trim();
+    if (!response) { alert('A justificativa é obrigatória!'); return; }
+    const { error } = await dsClient.rpc('admin_respond_suggestion', { suggestion_id: id, new_status: status, response_text: response });
+    if (error) { alert('❌ ' + error.message); return; }
+    loadSuggestions();
+  }
+
+  // ===== SISTEMA =====
+  async function loadSystemTab() {
+    const { data: settings } = await dsClient.from('site_settings').select('*').single();
+    if (settings) {
+      document.getElementById('maintenanceToggle').checked = settings.maintenance_mode;
+      document.getElementById('maintenanceMsg').value = settings.maintenance_message;
+    }
+
+    const { count: userCount } = await dsClient.from('profiles').select('*', { count: 'exact', head: true });
+    const { count: roomCount } = await dsClient.from('rooms').select('*', { count: 'exact', head: true });
+    const { count: bannedCount } = await dsClient.from('profiles').select('*', { count: 'exact', head: true }).eq('is_banned', true);
+    const { count: onlineCount } = await dsClient.from('profiles').select('*', { count: 'exact', head: true }).eq('status', 'online');
+    document.getElementById('siteStats').innerHTML = `
+      <div class="stat-adm-box"><b>${userCount ?? 0}</b><br>Jogadores</div>
+      <div class="stat-adm-box"><b>${roomCount ?? 0}</b><br>Salas criadas</div>
+      <div class="stat-adm-box"><b>${bannedCount ?? 0}</b><br>Banidos</div>
+      <div class="stat-adm-box"><b>${onlineCount ?? 0}</b><br>Online agora</div>
+    `;
+
+    const { data: online } = await dsClient.from('profiles').select('*').eq('status', 'online').limit(20);
+    document.getElementById('onlineList').innerHTML = (online && online.length > 0)
+      ? online.map(u => `<div class="log-item">🟢 ${u.display_name} (${u.friend_code})</div>`).join('')
+      : '<div class="empty-msg">Ninguém online no momento.</div>';
+
+    const { data: top } = await dsClient.from('profiles').select('*').order('xp', { ascending: false }).limit(10);
+    document.getElementById('leaderboardList').innerHTML = (top || []).map((u, i) => `<div class="log-item">#${i + 1} ${u.display_name} — ${u.xp || 0} XP (Nv ${u.level})</div>`).join('');
+  }
+
+  // ===== Gerenciar Ranking =====
+  async function findUserByCode(code) {
+    if (!code) { alert('Digite o código do jogador!'); return null; }
+    const { data } = await dsClient.from('profiles').select('*').ilike('friend_code', code.trim()).maybeSingle();
+    if (!data) { alert('Jogador não encontrado com esse código.'); return null; }
+    return data;
+  }
+
+  async function putPlayerFirst() {
+    const user = await findUserByCode(document.getElementById('rankTargetCode').value);
+    if (!user) return;
+    const mode = document.getElementById('rankModeSelect').value;
+    if (!confirm(`Colocar ${user.display_name} em 1º lugar no ranking de ${mode}?`)) return;
+    const { error } = await dsClient.rpc('admin_put_player_first', { target_id: user.id, mode_input: mode });
+    if (error) { alert('❌ ' + error.message); return; }
+    alert('✅ Feito!');
+  }
+
+  async function setExactScore() {
+    const user = await findUserByCode(document.getElementById('rankTargetCode').value);
+    if (!user) return;
+    const mode = document.getElementById('rankModeSelect').value;
+    const score = parseInt(prompt(`Nova pontuação de ${user.display_name} no modo ${mode}:`));
+    if (isNaN(score)) return;
+    const { error } = await dsClient.rpc('admin_set_leaderboard_score', { target_id: user.id, mode_input: mode, new_score: score });
+    if (error) { alert('❌ ' + error.message); return; }
+    alert('✅ Pontuação definida!');
+  }
+
+  async function resetLeaderboardMode() {
+    const mode = document.getElementById('rankModeSelect').value;
+    if (!confirm(`⚠️ Isso vai ZERAR a pontuação de TODOS os jogadores no modo ${mode}. Tem certeza?`)) return;
+    if (!confirm('Confirma mesmo? Essa ação não pode ser desfeita.')) return;
+    const { error } = await dsClient.rpc('admin_reset_leaderboard', { mode_input: mode });
+    if (error) { alert('❌ ' + error.message); return; }
+    alert('✅ Ranking reiniciado!');
+  }
+
+  async function setCustomRankTag() {
+    const user = await findUserByCode(document.getElementById('customTagCode').value);
+    if (!user) return;
+    const tagText = document.getElementById('customTagText').value.trim();
+    const { error } = await dsClient.rpc('admin_set_custom_rank_tag', { target_id: user.id, tag_text: tagText });
+    if (error) { alert('❌ ' + error.message); return; }
+    alert(tagText ? '✅ Tag aplicada!' : '✅ Tag removida!');
+    document.getElementById('customTagText').value = '';
+  }
+
+  async function resetBattlePassSeason() {
+    if (!confirm('⚠️ Isso vai ZERAR o XP e nível de TODOS os jogadores na temporada atual. Tem certeza?')) return;
+    if (!confirm('Confirma mesmo? Não pode ser desfeito.')) return;
+    const { data: season } = await dsClient.from('battle_pass_seasons').select('id').eq('is_active', true).single();
+    if (!season) { alert('Nenhuma temporada ativa encontrada.'); return; }
+    const { error } = await dsClient.rpc('admin_reset_season', { season_id_input: season.id });
+    if (error) { alert('❌ ' + error.message); return; }
+    alert('✅ Temporada reiniciada!');
+  }
+
+  async function toggleMaintenance() {
+    const enable = document.getElementById('maintenanceToggle').checked;
+    await dsClient.rpc('admin_toggle_maintenance', { enable, message_input: document.getElementById('maintenanceMsg').value });
+  }
+  async function saveMaintenanceMsg() {
+    const enable = document.getElementById('maintenanceToggle').checked;
+    await dsClient.rpc('admin_toggle_maintenance', { enable, message_input: document.getElementById('maintenanceMsg').value });
+    alert('Mensagem salva!');
+  }
+  async function bulkXP(amount) {
+    if (!confirm(`Aplicar ${amount > 0 ? '+' : ''}${amount} XP para TODOS os jogadores?`)) return;
+    await dsClient.rpc('admin_bulk_xp', { amount });
+    loadSystemTab();
+  }
+  async function bulkXPCustom() {
+    const amount = parseInt(prompt('Quantidade de XP (pode ser negativo):'));
+    if (isNaN(amount)) return;
+    await dsClient.rpc('admin_bulk_xp', { amount });
+    loadSystemTab();
+  }
+  async function notifyAll() {
+    const title = document.getElementById('notifyAllTitle').value.trim();
+    const body = document.getElementById('notifyAllBody').value.trim();
+    if (!title) { alert('Digite um título!'); return; }
+    if (!confirm('Enviar essa notificação para TODOS os jogadores?')) return;
+    await dsClient.rpc('admin_notify_all', { title_input: title, body_input: body });
+    alert('Enviado!');
+    document.getElementById('notifyAllTitle').value = '';
+    document.getElementById('notifyAllBody').value = '';
+  }
+
+  // ===== Novas ações do modal de jogador =====
+  async function clearGalleryModal() {
+    if (!confirm('Apagar TODAS as imagens da galeria deste jogador?')) return;
+    await dsClient.rpc('admin_clear_gallery', { target_id: pendingEditUserId });
+    alert('Galeria limpa.');
+  }
+  async function resetAvatarBannerModal() {
+    if (!confirm('Remover foto de perfil e banner deste jogador?')) return;
+    await dsClient.rpc('admin_reset_avatar_banner', { target_id: pendingEditUserId });
+    loadUsers();
+    alert('Avatar/banner resetados.');
+  }
+  async function togglePrivateModal(isPrivate) {
+    await dsClient.rpc('admin_force_private', { target_id: pendingEditUserId, is_private: isPrivate });
+    alert(isPrivate ? 'Perfil forçado como privado.' : 'Perfil forçado como público.');
+  }
+  async function regenerateCodeModal() {
+    if (!confirm('Gerar um novo código de amigo para este jogador? O código antigo deixará de funcionar.')) return;
+    const { data } = await dsClient.rpc('admin_regenerate_friend_code', { target_id: pendingEditUserId });
+    alert('Novo código: ' + data);
+    loadUsers();
+  }
+  async function setCustomCodeModal() {
+    const code = prompt('Digite a nova DS personalizada (ex: #DS-CRACK1):');
+    if (!code) return;
+    const { data, error } = await dsClient.rpc('admin_set_custom_friend_code', { target_id: pendingEditUserId, new_code: code });
+    if (error) { alert('❌ ' + error.message); return; }
+    if (!data.success) { alert('❌ ' + data.error); return; }
+    alert('✅ DS personalizada definida!');
+    loadUsers();
+  }
+  async function setSubscriptionTierModal() {
+    const tier = prompt('Digite o plano: free, vip ou mega');
+    if (!tier || !['free','vip','mega'].includes(tier)) { alert('Digite exatamente: free, vip ou mega'); return; }
+    const daysStr = tier === 'free' ? '' : prompt('Por quantos dias? (deixe vazio para não expirar)') || '';
+    const days = daysStr ? parseInt(daysStr) : null;
+    const { error } = await dsClient.rpc('admin_set_subscription', { target_id: pendingEditUserId, tier_input: tier, days_input: days });
+    if (error) { alert('❌ ' + error.message); return; }
+    alert('✅ Plano definido!');
+    loadUsers();
+  }
+
+  async function grantRoleDirectModal() {
+    const level = prompt('Digite o nível do cargo (1=Moderador, 2=Administrador, 3=Diretor Supremo, 4=CEO, 5=Dono):');
+    if (!level) return;
+    const durationStr = prompt('Duração em dias (deixe em branco para permanente):');
+    const duration = durationStr ? parseInt(durationStr) : null;
+    const { error } = await dsClient.rpc('admin_grant_role_direct', { target_id: pendingEditUserId, new_level: parseInt(level), duration_days_input: duration });
+    if (error) { alert('❌ ' + error.message); return; }
+    alert('✅ Cargo concedido!');
+    loadUsers();
+  }
+  async function grantAchievementModal() {
+    const { data: all } = await dsClient.from('achievements').select('*');
+    const list = (all || []).map(a => `${a.id} — ${a.title}`).join('\n');
+    const id = prompt('Digite o ID da conquista para conceder:\n\n' + list);
+    if (!id) return;
+    await dsClient.rpc('admin_grant_achievement', { target_id: pendingEditUserId, achievement_id_input: id });
+    alert('Conquista concedida (se o ID estava correto).');
+  }
+  async function revokeAchievementModal() {
+    const id = prompt('Digite o ID da conquista para remover:');
+    if (!id) return;
+    await dsClient.rpc('admin_revoke_achievement', { target_id: pendingEditUserId, achievement_id_input: id });
+    alert('Conquista removida (se o jogador a tinha).');
+  }
+  async function sendDirectNotifModal() {
+    const title = prompt('Título da notificação:');
+    if (!title) return;
+    const body = prompt('Mensagem (opcional):') || '';
+    await dsClient.rpc('admin_send_notification', { target_id: pendingEditUserId, title_input: title, body_input: body });
+    alert('Notificação enviada.');
+  }
+  async function deleteAccountModal() {
+    if (!confirm('⚠️ EXCLUIR esta conta PERMANENTEMENTE? Essa ação não pode ser desfeita.')) return;
+    if (!confirm('Tem certeza mesmo? Todos os dados desse jogador serão apagados.')) return;
+    await dsClient.rpc('admin_delete_account', { target_id: pendingEditUserId });
+    closeEditModal();
+    loadUsers();
+  }
+
+  // ===== JOGADORES =====
+  async function loadUsers() {
+    const { data } = await dsClient.from('profiles').select('*').order('created_at', { ascending: false });
+    allUsers = data || [];
+    document.getElementById('userCount').innerText = allUsers.length;
+    renderUsers(allUsers);
+  }
+
+  function renderUsers(users) {
+    const list = document.getElementById('usersList');
+    if (users.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhum usuário encontrado.</div>'; return; }
+
+    list.innerHTML = users.map(u => {
+      const isAdminNow = dsIsAdminActive(u);
+      const levelName = LEVEL_NAMES[u.admin_level] || '';
+      const isMuted = u.muted_until && new Date(u.muted_until) > new Date();
+      const avatarHtml = u.avatar_url ? `<img src="${u.avatar_url}">` : (u.avatar_emoji || '🎨');
+      return `
+      <div class="user-row">
+        <div class="user-info">
+          <div class="user-avatar">${avatarHtml}</div>
+          <div>
+            <div class="user-name">${u.display_name} ${isAdminNow ? `<span class="badge-admin">${levelName}</span>` : ''} ${u.is_banned ? '<span class="badge-banned">BANIDO</span>' : ''} ${isMuted ? '<span class="badge-muted">MUTADO</span>' : ''}</div>
+            <div class="user-code">${u.friend_code} · Nv ${u.level} · ${u.xp || 0}xp</div>
+          </div>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="action-btn btn-edit" onclick="openEditModal('${u.id}')">Editar</button>
+          ${u.id === myProfile.id ? '' : `
+            ${isAdminNow
+              ? `<button class="action-btn btn-demote" onclick="revokeAdmin('${u.id}')">Revogar ADM</button>`
+              : ''
+            }
+            ${u.is_banned
+              ? `<button class="action-btn btn-unban" onclick="openUnbanModal('${u.id}')">Desbanir</button>`
+              : `<button class="action-btn btn-ban" onclick="openBanModal('${u.id}')">Banir</button>`
+            }
+          `}
+        </div>
+      </div>`;
+    }).join('');
+  }
+
+  function filterUsers() {
+    const q = document.getElementById('searchInput').value.trim().toLowerCase();
+    if (!q) { renderUsers(allUsers); return; }
+    renderUsers(allUsers.filter(u => u.display_name.toLowerCase().includes(q) || u.friend_code.toLowerCase().includes(q)));
+  }
+
+  async function revokeAdmin(userId) {
+    if (!confirm('Revogar o cargo de administrador deste usuário?')) return;
+    const { error } = await dsClient.rpc('revoke_admin', { target_user_id: userId });
+    if (error) { alert('❌ ' + error.message); return; }
+    loadUsers();
+  }
+
+  // ===== Modal Editar (poder total) =====
+  function openEditModal(userId) {
+    const u = allUsers.find(x => x.id === userId);
+    if (!u) return;
+    pendingEditUserId = userId;
+    document.getElementById('editTargetName').innerText = u.display_name + ' (' + u.friend_code + ')';
+    document.getElementById('editName').value = u.display_name;
+    document.getElementById('editEmoji').value = u.avatar_emoji || '🎨';
+    document.getElementById('editLevel').value = u.level;
+    document.getElementById('editXP').value = u.xp || 0;
+    document.getElementById('btnSetSubscription').style.display = dsIsAdminActive(myProfile) && myProfile.admin_level >= 4 ? 'block' : 'none';
+    document.getElementById('editModal').classList.add('active');
+  }
+  function closeEditModal() { document.getElementById('editModal').classList.remove('active'); }
+
+  async function saveEditProfile() {
+    const { error } = await dsClient.rpc('admin_edit_profile', {
+      target_id: pendingEditUserId,
+      new_name: document.getElementById('editName').value.trim(),
+      new_emoji: document.getElementById('editEmoji').value.trim(),
+      new_level: parseInt(document.getElementById('editLevel').value) || null,
+      new_xp: parseInt(document.getElementById('editXP').value) || null
+    });
+    if (error) { alert('❌ ' + error.message); return; }
+    closeEditModal();
+    loadUsers();
+  }
+
+  async function quickXP(amount) {
+    const u = allUsers.find(x => x.id === pendingEditUserId);
+    const newXP = Math.max(0, (u.xp || 0) + amount);
+    await dsClient.rpc('admin_set_xp_level', { target_id: pendingEditUserId, new_xp: newXP, new_level: null });
+    loadUsers();
+    openEditModal(pendingEditUserId);
+  }
+  async function quickLevel(amount) {
+    const u = allUsers.find(x => x.id === pendingEditUserId);
+    const newLevel = Math.max(1, (u.level || 1) + amount);
+    await dsClient.rpc('admin_set_xp_level', { target_id: pendingEditUserId, new_xp: null, new_level: newLevel });
+    loadUsers();
+    openEditModal(pendingEditUserId);
+  }
+  async function resetStats() {
+    if (!confirm('Resetar nível e XP deste jogador para o padrão?')) return;
+    await dsClient.rpc('admin_reset_stats', { target_id: pendingEditUserId });
+    loadUsers();
+    openEditModal(pendingEditUserId);
+  }
+  async function forceLogoutPlayer() {
+    await dsClient.rpc('admin_force_logout', { target_id: pendingEditUserId });
+    alert('O jogador será desconectado no próximo carregamento de página.');
+  }
+  async function mutePlayerModal(minutes) {
+    await dsClient.rpc('admin_mute_player', { target_id: pendingEditUserId, minutes });
+    loadUsers();
+    openEditModal(pendingEditUserId);
+  }
+  async function unmutePlayerModal() {
+    await dsClient.rpc('admin_unmute_player', { target_id: pendingEditUserId });
+    loadUsers();
+    openEditModal(pendingEditUserId);
+  }
+
+  // ===== BANS =====
+  function openBanModal(userId) { pendingBanUserId = userId; document.getElementById('banReason').value = ''; document.getElementById('banModal').classList.add('active'); }
+  function closeBanModal() { document.getElementById('banModal').classList.remove('active'); }
+
+  async function confirmBan() {
+    const reason = document.getElementById('banReason').value.trim();
+    const duration = document.getElementById('banDuration').value;
+    if (!reason) { alert('Digite o motivo do banimento!'); return; }
+
+    let bannedUntil = null;
+    if (duration !== 'permanent') {
+      const d = new Date(); d.setDate(d.getDate() + parseInt(duration)); bannedUntil = d.toISOString();
+    }
+
+    await dsClient.from('bans').insert({ user_id: pendingBanUserId, banned_by: myProfile.id, reason, banned_until: bannedUntil, is_active: true });
+    await dsClient.from('profiles').update({ is_banned: true }).eq('id', pendingBanUserId);
+    await dsSendNotification(pendingBanUserId, 'ban', 'Sua conta foi banida', `Motivo: ${reason}${bannedUntil ? ' · Até: ' + new Date(bannedUntil).toLocaleDateString('pt-BR') : ' · Permanente'}`, null);
+
+    closeBanModal();
+    loadUsers();
+  }
+
+  function openUnbanModal(userId) { pendingUnbanId = userId; document.getElementById('unbanReason').value = ''; document.getElementById('unbanModal').classList.add('active'); }
+  function closeUnbanModal() { document.getElementById('unbanModal').classList.remove('active'); }
+
+  async function confirmUnban() {
+    const reason = document.getElementById('unbanReason').value.trim();
+    if (!reason) { alert('Digite o motivo do desbanimento!'); return; }
+    await dsClient.from('bans').update({ is_active: false, unbanned_by: myProfile.id, unban_reason: reason, unbanned_at: new Date().toISOString() }).eq('user_id', pendingUnbanId).eq('is_active', true);
+    await dsClient.from('profiles').update({ is_banned: false }).eq('id', pendingUnbanId);
+    await dsSendNotification(pendingUnbanId, 'unban', 'Sua conta foi desbanida', `Motivo: ${reason}`, null);
+    closeUnbanModal();
+    loadUsers();
+  }
+
+  async function loadBans() {
+    const { data: bans } = await dsClient.from('bans').select('*, user:user_id(display_name,friend_code), admin:banned_by(display_name), unbanned_admin:unbanned_by(display_name)').order('created_at', { ascending: false });
+    const list = document.getElementById('bansList');
+    if (!bans || bans.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhum banimento registrado.</div>'; return; }
+    list.innerHTML = bans.map(b => `
+      <div class="ban-history-item ${b.is_active ? 'active-ban' : 'resolved'}">
+        <div class="ban-row"><span>${b.user?.display_name || '—'} (${b.user?.friend_code || '—'})</span><span>${b.is_active ? '🔴 Ativo' : '🟢 Resolvido'}</span></div>
+        <div>📝 Motivo: ${b.reason}</div>
+        <div>👑 Banido por: ${b.admin?.display_name || '—'}</div>
+        <div>⏳ Duração: ${b.banned_until ? 'até ' + new Date(b.banned_until).toLocaleDateString('pt-BR') : 'Permanente'}</div>
+        ${!b.is_active ? `<div style="margin-top:6px; padding-top:6px; border-top:1px dashed var(--charcoal);">🔓 Desbanido por: ${b.unbanned_admin?.display_name || '—'} · Motivo: ${b.unban_reason || '—'}</div>` : ''}
+      </div>`).join('');
+  }
+
+  // ===== CÓDIGOS =====
+  function toggleCustomDuration() {
+    document.getElementById('codeDurationCustom').style.display = document.getElementById('codeDuration').value === 'custom' ? 'block' : 'none';
+  }
+  async function generateAdmCode() {
+    const level = parseInt(document.getElementById('codeLevel').value);
+    const durationSel = document.getElementById('codeDuration').value;
+    const message = document.getElementById('codeMessage').value.trim();
+    let durationDays = null;
+    if (durationSel === 'custom') {
+      durationDays = parseInt(document.getElementById('codeDurationCustom').value);
+      if (!durationDays || durationDays < 1) { alert('Digite uma quantidade de dias válida!'); return; }
+    } else if (durationSel !== 'permanent') { durationDays = parseInt(durationSel); }
+
+    const { data, error } = await dsClient.rpc('create_admin_code', { level_input: level, duration_days_input: durationDays, message_input: message });
+    if (error) { alert('❌ ' + error.message); return; }
+    lastGeneratedCode = data;
+    document.getElementById('generatedCodeText').innerText = data;
+    document.getElementById('generatedCodeResult').style.display = 'block';
+    document.getElementById('codeMessage').value = '';
+    loadCodes();
+  }
+  function copyGeneratedCode() { navigator.clipboard.writeText(lastGeneratedCode); alert('Código copiado: ' + lastGeneratedCode); }
+
+  async function loadCodes() {
+    const { data: codes } = await dsClient.from('admin_codes').select('*, creator:created_by(display_name), redeemer:used_by(display_name)').order('created_at', { ascending: false });
+    const list = document.getElementById('codesList');
+    if (!codes || codes.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhum código gerado ainda.</div>'; return; }
+    list.innerHTML = codes.map(c => `
+      <div class="ban-history-item ${c.is_active ? '' : 'resolved'}">
+        <div class="ban-row"><span style="font-family:'Bebas Neue',sans-serif; font-size:16px;">${c.code}</span><span>${c.is_active ? '🟢 Disponível' : '⚪ Usado'}</span></div>
+        <div>👑 Nível: ${LEVEL_NAMES[c.level]}</div>
+        <div>⏳ Duração: ${c.duration_days ? c.duration_days + ' dias' : 'Permanente'}</div>
+        <div>✍️ Gerado por: ${c.creator?.display_name || '—'}</div>
+        ${c.used_by ? `<div>✅ Usado por: ${c.redeemer?.display_name || '—'}</div>` : ''}
+      </div>`).join('');
+  }
+
+  // ===== AVISOS GLOBAIS =====
+  async function createAnnouncement() {
+    const message = document.getElementById('announceMsg').value.trim();
+    const type = document.getElementById('announceType').value;
+    if (!message) { alert('Digite a mensagem do aviso!'); return; }
+    await dsClient.from('announcements').insert({ message, type, created_by: myProfile.id, is_active: true });
+    document.getElementById('announceMsg').value = '';
+    loadAnnouncements();
+  }
+  async function loadAnnouncements() {
+    const { data } = await dsClient.from('announcements').select('*').eq('is_active', true).order('created_at', { ascending: false });
+    const list = document.getElementById('announcementsList');
+    if (!data || data.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhum aviso ativo.</div>'; return; }
+    const colors = { info: 'var(--ink)', warning: 'var(--mustard)', maintenance: 'var(--brick)', event: 'var(--green)' };
+    list.innerHTML = data.map(a => `
+      <div class="ban-history-item">
+        <span class="announcement-type-badge" style="background:${colors[a.type]}; color:#fff;">${a.type}</span>
+        <div style="margin-top:4px;">${a.message}</div>
+        <button class="action-btn btn-ban" style="margin-top:6px;" onclick="deactivateAnnouncement('${a.id}')">Desativar</button>
+      </div>`).join('');
+  }
+  async function deactivateAnnouncement(id) {
+    await dsClient.from('announcements').update({ is_active: false }).eq('id', id);
+    loadAnnouncements();
+  }
+
+  // ===== SALAS =====
+  async function loadRooms() {
+    const { data } = await dsClient.from('rooms').select('*, host:host_id(display_name), room_players(count)').in('status', ['lobby','playing']).order('created_at', { ascending: false });
+    document.getElementById('roomCount').innerText = data ? data.length : 0;
+    const list = document.getElementById('roomsAdminList');
+    if (!data || data.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhuma sala ativa.</div>'; return; }
+    list.innerHTML = data.map(r => `
+      <div class="user-row">
+        <div>
+          <div class="user-name">${r.name} (${r.room_code || '—'})</div>
+          <div class="user-code">Host: ${r.host?.display_name || '—'} · ${r.room_players[0]?.count || 0}/${r.max_players} · ${r.status} · ${r.privacy}</div>
+        </div>
+        <div style="display:flex; gap:6px; flex-wrap:wrap;">
+          <button class="action-btn btn-edit" onclick="togglePrivacyRoom('${r.id}', '${r.privacy}')">Trocar privacidade</button>
+          <button class="action-btn btn-demote" onclick="kickAllRoom('${r.id}')">Kickar todos</button>
+          <button class="action-btn btn-ban" onclick="forceEndRoom('${r.id}')">Encerrar</button>
+          <button class="action-btn btn-ban" style="background:#600;" onclick="deleteRoomAdm('${r.id}')">Apagar sala</button>
+        </div>
+      </div>`).join('');
+  }
+  async function togglePrivacyRoom(roomId, currentPrivacy) {
+    const next = currentPrivacy === 'public' ? 'private' : 'public';
+    if (!confirm(`Trocar privacidade para "${next}"?`)) return;
+    await dsClient.rpc('admin_toggle_room_privacy', { room_id_input: roomId, new_privacy: next });
+    loadRooms();
+  }
+  async function kickAllRoom(roomId) {
+    if (!confirm('Expulsar TODOS os jogadores desta sala?')) return;
+    await dsClient.rpc('admin_kick_all_players', { room_id_input: roomId });
+    loadRooms();
+  }
+  async function deleteRoomAdm(roomId) {
+    if (!confirm('Apagar esta sala permanentemente?')) return;
+    await dsClient.rpc('admin_delete_room', { room_id_input: roomId });
+    loadRooms();
+  }
+  async function forceEndRoom(roomId) {
+    if (!confirm('Encerrar essa partida à força?')) return;
+    await dsClient.rpc('admin_force_end_room', { room_id_input: roomId });
+    loadRooms();
+  }
+
+  // ===== LOG =====
+  async function loadLog() {
+    const { data } = await dsClient.from('admin_action_log').select('*, admin:admin_id(display_name), target:target_id(display_name)').order('created_at', { ascending: false }).limit(50);
+    const list = document.getElementById('logList');
+    if (!data || data.length === 0) { list.innerHTML = '<div class="empty-msg">Nenhuma ação registrada ainda.</div>'; return; }
+    list.innerHTML = data.map(l => `
+      <div class="log-item">
+        <b>${l.admin?.display_name || '—'}</b> → ${l.action} ${l.target ? '→ ' + l.target.display_name : ''}
+        ${l.details ? '(' + l.details + ')' : ''}
+        <div style="opacity:.6;">${new Date(l.created_at).toLocaleString('pt-BR')}</div>
+      </div>`).join('');
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+    myProfile = await dsGetProfile();
+    if (!dsIsAdminActive(myProfile)) { document.getElementById('deniedView').style.display = 'flex'; return; }
+    document.getElementById('admView').style.display = 'flex';
+    loadUsers();
+  });
+</script>
+</body>
+</html>

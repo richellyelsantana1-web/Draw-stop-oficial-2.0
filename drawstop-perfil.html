@@ -1,0 +1,476 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Perfil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root {
+    --paper:#EDE4D2; --paper-2:#E3D6BC; --ink:#1F3A5C; --brick:#B23B2E; --mustard:#D9A404;
+    --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A;
+  }
+  body.profile-dark {
+    --paper:#1A1A1A; --paper-2:#2A2A2A; --ink:#8FAEFF; --charcoal:#F0F0F0; --cream:#242424;
+  }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:'Poppins',sans-serif; color:var(--charcoal); background:var(--paper); overflow-x:hidden; transition:background .3s,color .3s; }
+  body { display:flex; flex-direction:column; align-items:center; padding:15px 12px 50px; }
+  .container { width:100%; max-width:480px; display:flex; flex-direction:column; gap:16px; }
+  .top-bar { display:flex; justify-content:space-between; align-items:center; }
+  .btn-back { background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:6px 14px; font-weight:700; text-decoration:none; color:var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); font-size:13px; cursor:pointer; }
+  .theme-toggle-row { display:flex; gap:6px; }
+  .theme-btn { background:var(--cream); border:2px solid var(--charcoal); border-radius:10px; padding:5px 9px; font-size:14px; cursor:pointer; }
+  .theme-btn.active { background:var(--mustard); }
+
+  /* Banner + avatar */
+  .banner-wrap { position:relative; height:150px; border-radius:18px; border:3px solid var(--charcoal); overflow:hidden; background:var(--mustard); }
+  /* Fundos animados de ADM agora vêm do drawstop-supabase.js (dsRenderAnimatedBackground) */
+  .banner-media { width:100%; height:100%; object-fit:cover; }
+  .banner-edit-btn { position:absolute; top:8px; right:8px; background:rgba(0,0,0,.55); color:#FFF; border:none; border-radius:8px; padding:5px 10px; font-size:11px; font-weight:800; cursor:pointer; }
+
+  .avatar-wrap { position:absolute; bottom:-38px; left:16px; width:76px; height:76px; }
+  .avatar-img { width:100%; height:100%; border-radius:18px; object-fit:cover; background:#FFF; border:3px solid var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); }
+  .avatar-emoji-fallback { width:100%; height:100%; border-radius:18px; background:#FFF; border:3px solid var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); display:flex; align-items:center; justify-content:center; font-size:36px; }
+  .avatar-wrap.admin .avatar-img, .avatar-wrap.admin .avatar-emoji-fallback { border-color:var(--mustard); box-shadow:0 0 14px var(--mustard); }
+  .avatar-edit-btn { position:absolute; bottom:-4px; right:-4px; background:var(--mustard); border:2px solid var(--charcoal); border-radius:50%; width:26px; height:26px; font-size:12px; cursor:pointer; }
+
+  .profile-header-info { margin-top:44px; padding-left:4px; }
+  .profile-name-big { font-family:'Bebas Neue',sans-serif; font-size:26px; }
+  .adm-tag-big { font-size:11px; font-weight:900; background:linear-gradient(90deg,#F0BC2E,#D9A404); color:#3a2b00; padding:2px 8px; border-radius:8px; margin-left:6px; vertical-align:middle; }
+  .profile-code { font-size:12px; font-weight:700; color:var(--ink); }
+
+  .card-box { background:var(--cream); border:3px solid var(--charcoal); border-radius:20px; box-shadow:4px 6px 0px var(--charcoal); padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .field-label { font-weight:800; font-size:13px; }
+  .input-field, .select-field { width:100%; padding:10px 12px; border:2.5px solid var(--charcoal); border-radius:10px; font-family:inherit; font-weight:700; font-size:13px; background:#FFF; color:#000; outline:none; }
+  .stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center; }
+  .stat-box { background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:8px; }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:22px; }
+  .stat-label { font-size:10px; font-weight:700; opacity:.7; }
+  .btn-save { width:100%; padding:14px; background:var(--mustard); border:3px solid var(--charcoal); border-radius:14px; font-weight:800; font-size:15px; cursor:pointer; box-shadow:3px 4px 0px var(--charcoal); text-transform:uppercase; font-family:'Bebas Neue',sans-serif; letter-spacing:1px; }
+  .adm-bg-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; }
+  .adm-bg-option { height:44px; border-radius:10px; border:2.5px solid var(--charcoal); cursor:pointer; }
+  .adm-bg-option.selected { outline:3px solid var(--ink); outline-offset:2px; }
+  .bg-none { background:var(--mustard); }
+  .bg-glow { background:radial-gradient(circle,#fff,var(--mustard)); }
+  .bg-stars { background:#1a1a2e; }
+  .bg-fire { background:linear-gradient(0deg,#ff4d00,#ffae00); }
+  .bg-aurora { background:linear-gradient(120deg,#00c6ff,#7b2ff7,#00e5a0); }
+  .bg-ocean { background:linear-gradient(180deg,#003554,#00527a); }
+  .bg-sparkle { background:linear-gradient(135deg,#2b0a3d,#5a1e8f); }
+  .bg-matrix { background:#000; box-shadow:inset 0 0 0 1px #00ff6a; }
+
+  .gallery-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .gallery-slot { aspect-ratio:1; border:2.5px dashed var(--charcoal); border-radius:14px; background:var(--paper-2); display:flex; align-items:center; justify-content:center; font-size:24px; cursor:pointer; overflow:hidden; position:relative; }
+  .gallery-slot img { width:100%; height:100%; object-fit:cover; }
+  .gallery-remove { position:absolute; top:4px; right:4px; background:var(--brick); color:#FFF; border:none; border-radius:6px; width:22px; height:22px; font-size:12px; cursor:pointer; }
+
+  .achievements-grid { display:flex; flex-direction:column; gap:8px; }
+  .achievement-item { display:flex; align-items:center; gap:10px; background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:8px 10px; }
+  .achievement-item.locked { opacity:.4; filter:grayscale(1); }
+  .achievement-icon { font-size:22px; }
+  .achievement-title { font-weight:800; font-size:13px; }
+  .achievement-desc { font-size:11px; opacity:.8; }
+
+  .toggle-row { display:flex; justify-content:space-between; align-items:center; font-size:13px; font-weight:700; }
+  input[type="file"] { display:none; }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <a href="drawstop-menu.html" class="btn-back">⬅ Voltar</a>
+      <div class="theme-toggle-row">
+        <button class="theme-btn" id="themeLight" onclick="setProfileTheme('light')">☀️</button>
+        <button class="theme-btn" id="themeDark" onclick="setProfileTheme('dark')">🌙</button>
+      </div>
+    </div>
+
+    <div style="position:relative;">
+      <div class="banner-wrap" id="bannerWrap">
+        <video class="banner-media" id="bannerVideo" style="display:none;" autoplay loop muted playsinline></video>
+        <img class="banner-media" id="bannerImg" style="display:none;">
+        <div id="animBgLayer"></div>
+        <button class="banner-edit-btn" onclick="document.getElementById('bannerFileInput').click()">✏️ Editar banner</button>
+        <input type="file" id="bannerFileInput" accept="image/*,video/*" onchange="uploadBanner(this.files[0])">
+      </div>
+      <div class="avatar-wrap" id="avatarWrap">
+        <img class="avatar-img" id="avatarImg" style="display:none;">
+        <div class="avatar-emoji-fallback" id="avatarEmojiFallback">🎨</div>
+        <button class="avatar-edit-btn" onclick="document.getElementById('avatarFileInput').click()">✏️</button>
+        <input type="file" id="avatarFileInput" accept="image/*" onchange="uploadAvatar(this.files[0])">
+      </div>
+    </div>
+
+    <div class="profile-header-info">
+      <span class="profile-name-big" id="profileNameBig">Carregando...</span>
+      <span class="adm-tag-big" id="admTagBig" style="display:none;">ADM</span>
+      <span id="rankTagsContainer"></span>
+      <div class="profile-code" id="profileCode"></div>
+    </div>
+
+    <div class="card-box">
+      <div class="stat-grid">
+        <div class="stat-box"><div class="stat-value" id="statLevel">1</div><div class="stat-label">NÍVEL</div></div>
+        <div class="stat-box"><div class="stat-value" id="statXP">0</div><div class="stat-label">XP</div></div>
+        <div class="stat-box"><div class="stat-value" id="statCode">-</div><div class="stat-label">CÓDIGO</div></div>
+      </div>
+    </div>
+
+    <div class="card-box">
+      <h3 class="field-label" style="margin:0;">✏️ Personalização</h3>
+
+      <div>
+        <label class="field-label">Nome de exibição</label>
+        <input type="text" id="displayNameInput" class="input-field" maxlength="20">
+      </div>
+
+      <div>
+        <label class="field-label">Fonte do nome/perfil</label>
+        <select id="fontSelect" class="select-field" onchange="previewFont()">
+          <option value="Poppins">Poppins</option>
+          <option value="Fredoka">Fredoka</option>
+          <option value="Caveat">Caveat (manuscrita)</option>
+          <option value="Bebas Neue">Bebas Neue</option>
+        </select>
+      </div>
+
+      <div id="admBgSection" style="display:none;">
+        <label class="field-label">👑 Fundo animado (exclusivo ADM)</label>
+        <div class="adm-bg-grid">
+          <div class="adm-bg-option bg-none" data-bg="none" onclick="pickAdminBg('none')" title="Nenhum"></div>
+          <div class="adm-bg-option bg-glow" data-bg="glow" onclick="pickAdminBg('glow')" title="Brilho pulsante"></div>
+          <div class="adm-bg-option bg-stars" data-bg="stars" onclick="pickAdminBg('stars')" title="Estrelas"></div>
+          <div class="adm-bg-option bg-fire" data-bg="fire" onclick="pickAdminBg('fire')" title="Fogo"></div>
+          <div class="adm-bg-option bg-aurora" data-bg="aurora" onclick="pickAdminBg('aurora')" title="Aurora"></div>
+          <div class="adm-bg-option bg-ocean" data-bg="ocean" onclick="pickAdminBg('ocean')" title="Oceano"></div>
+          <div class="adm-bg-option bg-sparkle" data-bg="sparkle" onclick="pickAdminBg('sparkle')" title="Brilhos"></div>
+          <div class="adm-bg-option bg-matrix" data-bg="matrix" onclick="pickAdminBg('matrix')" title="Matrix"></div>
+        </div>
+      </div>
+
+      <div id="admTagSection" style="display:none;">
+        <label class="field-label">👑 Tag de ADM exibida</label>
+        <select id="admTagSelect" class="select-field">
+          <option value="ADM">ADM</option>
+          <option value="Sup">Sup</option>
+          <option value="Dono">Dono</option>
+          <option value="Fundador">Fundador</option>
+          <option value="Moderador">Moderador</option>
+          <option value="GM">GM</option>
+          <option value="Suporte">Suporte</option>
+          <option value="Dev">Dev</option>
+          <option value="Beta Tester">Beta Tester</option>
+          <option value="Staff">Staff</option>
+          <option value="Coordenador">Coordenador</option>
+          <option value="Diretor">Diretor</option>
+          <option value="Anfitrião Chefe">Anfitrião Chefe</option>
+          <option value="Guardião">Guardião</option>
+          <option value="Lenda">Lenda</option>
+        </select>
+      </div>
+
+      <div class="toggle-row" id="admToggleRow" style="display:none;">
+        <span>👑 Exibir tag de ADM no perfil</span>
+        <input type="checkbox" id="admTagToggle" style="width:20px;height:20px;">
+      </div>
+
+      <div class="toggle-row">
+        <span>🔒 Tornar meu perfil privado</span>
+        <input type="checkbox" id="privateToggle" style="width:20px;height:20px;">
+      </div>
+
+      <button class="btn-save" onclick="saveProfile()">💾 Salvar Perfil</button>
+      <div id="feedback" style="text-align:center; font-size:12px; font-weight:700;"></div>
+    </div>
+
+    <div class="card-box">
+      <h3 class="field-label" style="margin:0;">😎 Emojis Customizados (foto/GIF)</h3>
+      <div class="letters-info" id="emojiSlotsInfo" style="margin-bottom:4px;"></div>
+      <div class="gallery-grid" id="emojiSlotsGrid"></div>
+    </div>
+
+    <div class="card-box">
+      <h3 class="field-label" style="margin:0;">🖼️ Galeria de Desenhos (melhores 4)</h3>
+      <div class="gallery-grid" id="galleryGrid"></div>
+    </div>
+
+    <div class="card-box">
+      <h3 class="field-label" style="margin:0;">🏆 Conquistas</h3>
+      <div class="achievements-grid" id="achievementsList"><div style="font-size:12px;">Carregando...</div></div>
+    </div>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  let myProfile = null;
+  let admBgChoice = 'none';
+
+  function previewFont() {
+    document.getElementById('profileNameBig').style.fontFamily = `'${document.getElementById('fontSelect').value}', sans-serif`;
+  }
+
+  function setProfileTheme(theme) {
+    document.body.classList.toggle('profile-dark', theme === 'dark');
+    document.getElementById('themeLight').classList.toggle('active', theme === 'light');
+    document.getElementById('themeDark').classList.toggle('active', theme === 'dark');
+    localStorage.setItem('drawstop_profile_theme', theme);
+    if (myProfile) dsClient.from('profiles').update({ profile_theme: theme }).eq('id', myProfile.id);
+  }
+
+  function pickAdminBg(bg) {
+    admBgChoice = bg;
+    document.querySelectorAll('.adm-bg-option').forEach(el => el.classList.toggle('selected', el.dataset.bg === bg));
+    applyAdminBgToBanner(bg);
+  }
+
+  function applyAdminBgToBanner(bg) {
+    dsRenderAnimatedBackground(document.getElementById('animBgLayer'), bg);
+  }
+
+  async function uploadAvatar(file) {
+    if (!file) return;
+    const feedback = document.getElementById('feedback');
+    feedback.innerText = 'Enviando foto...';
+    const path = `${myProfile.id}/avatar-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error } = await dsClient.storage.from('avatars').upload(path, file, { upsert: true });
+    if (error) { feedback.innerText = '❌ ' + error.message; return; }
+    const { data: pub } = dsClient.storage.from('avatars').getPublicUrl(path);
+    await dsClient.from('profiles').update({ avatar_url: pub.publicUrl }).eq('id', myProfile.id);
+    myProfile.avatar_url = pub.publicUrl;
+    renderAvatar();
+    feedback.innerText = '✅ Foto de perfil atualizada!';
+  }
+
+  async function uploadBanner(file) {
+    if (!file) return;
+    const feedback = document.getElementById('feedback');
+    feedback.innerText = 'Enviando banner...';
+    const isVideo = file.type.startsWith('video/');
+    const path = `${myProfile.id}/banner-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error } = await dsClient.storage.from('banners').upload(path, file, { upsert: true });
+    if (error) { feedback.innerText = '❌ ' + error.message; return; }
+    const { data: pub } = dsClient.storage.from('banners').getPublicUrl(path);
+    await dsClient.from('profiles').update({ banner_url: pub.publicUrl, banner_type: isVideo ? 'video' : 'image' }).eq('id', myProfile.id);
+    myProfile.banner_url = pub.publicUrl;
+    myProfile.banner_type = isVideo ? 'video' : 'image';
+    renderBanner();
+    feedback.innerText = '✅ Banner atualizado!';
+  }
+
+  function renderAvatar() {
+    const img = document.getElementById('avatarImg');
+    const fallback = document.getElementById('avatarEmojiFallback');
+    if (myProfile.avatar_url) {
+      img.src = myProfile.avatar_url;
+      img.style.display = 'block';
+      fallback.style.display = 'none';
+    } else {
+      img.style.display = 'none';
+      fallback.style.display = 'flex';
+      fallback.innerText = myProfile.avatar_emoji || '🎨';
+    }
+    document.getElementById('avatarWrap').classList.toggle('admin', dsIsAdminActive(myProfile));
+  }
+
+  function renderBanner() {
+    const img = document.getElementById('bannerImg');
+    const video = document.getElementById('bannerVideo');
+    img.style.display = 'none';
+    video.style.display = 'none';
+
+    if (myProfile.banner_url && myProfile.banner_type === 'video') {
+      video.src = myProfile.banner_url;
+      video.style.display = 'block';
+    } else if (myProfile.banner_url) {
+      img.src = myProfile.banner_url;
+      img.style.display = 'block';
+    } else {
+      document.getElementById('bannerWrap').style.background = 'var(--mustard)';
+    }
+
+    if (dsIsAdminActive(myProfile)) {
+      applyAdminBgToBanner(myProfile.admin_background || 'none');
+    }
+  }
+
+  async function loadProfile() {
+    myProfile = await dsGetProfile();
+
+    document.getElementById('profileNameBig').innerText = myProfile.display_name;
+    document.getElementById('profileNameBig').style.fontFamily = `'${myProfile.font_choice || 'Poppins'}', sans-serif`;
+
+    const rankTags = await dsGetLiveRankTags(myProfile.id);
+    let rankTagsHtml = rankTags.map(t =>
+      `<span class="adm-tag-big" style="background:linear-gradient(90deg,#8E44AD,#3E8E5A); color:#fff; display:inline-block;">${t.label}</span>`
+    ).join(' ');
+    if (myProfile.custom_rank_tag) {
+      rankTagsHtml += ` <span class="adm-tag-big" style="background:linear-gradient(90deg,#E91E63,#FF9800); color:#fff; display:inline-block;">${myProfile.custom_rank_tag}</span>`;
+    }
+    document.getElementById('rankTagsContainer').innerHTML = rankTagsHtml;
+    document.getElementById('profileCode').innerText = myProfile.friend_code;
+    document.getElementById('statLevel').innerText = myProfile.level;
+    document.getElementById('statXP').innerText = myProfile.xp;
+    document.getElementById('statCode').innerText = myProfile.friend_code.replace('#DS-', '');
+
+    document.getElementById('displayNameInput').value = myProfile.display_name;
+    document.getElementById('fontSelect').value = myProfile.font_choice || 'Poppins';
+
+    renderAvatar();
+    renderBanner();
+
+    const savedTheme = myProfile.profile_theme && myProfile.profile_theme !== 'auto' ? myProfile.profile_theme : (localStorage.getItem('drawstop_profile_theme') || 'light');
+    setProfileTheme(savedTheme);
+
+    document.getElementById('privateToggle').checked = !!myProfile.profile_private;
+
+    if (dsIsAdminActive(myProfile)) {
+      document.getElementById('admToggleRow').style.display = 'flex';
+      document.getElementById('admTagToggle').checked = myProfile.admin_tag_visible;
+      document.getElementById('admBgSection').style.display = 'block';
+      document.getElementById('admTagSection').style.display = 'block';
+      document.getElementById('admTagSelect').value = myProfile.admin_tag_label || 'ADM';
+      admBgChoice = myProfile.admin_background || 'none';
+      document.querySelectorAll('.adm-bg-option').forEach(el => el.classList.toggle('selected', el.dataset.bg === admBgChoice));
+      if (myProfile.admin_tag_visible) {
+        document.getElementById('admTagBig').style.display = 'inline-block';
+        document.getElementById('admTagBig').innerText = myProfile.admin_tag_label || 'ADM';
+      }
+    }
+
+    loadGallery();
+    loadAchievements();
+    loadEmojiSlots();
+  }
+
+  const EMOJI_SLOT_LIMITS = { free: 1, vip: 10, mega: 30 };
+
+  async function loadEmojiSlots() {
+    const tier = myProfile.subscription_tier || 'free';
+    const limit = EMOJI_SLOT_LIMITS[tier] || 1;
+    document.getElementById('emojiSlotsInfo').innerText = `Plano ${tier.toUpperCase()}: até ${limit} slot(s) de emoji personalizado.`;
+
+    const { data: emojis } = await dsClient.from('profile_emojis').select('*').eq('profile_id', myProfile.id).order('slot');
+    const bySlot = {};
+    (emojis || []).forEach(e => bySlot[e.slot] = e);
+
+    const grid = document.getElementById('emojiSlotsGrid');
+    const slots = [];
+    for (let i = 1; i <= limit; i++) slots.push(i);
+
+    grid.innerHTML = slots.map(slot => {
+      const item = bySlot[slot];
+      if (item) {
+        const media = item.media_type === 'video'
+          ? `<video src="${item.media_url}" autoplay loop muted playsinline style="width:100%; height:100%; object-fit:cover;"></video>`
+          : `<img src="${item.media_url}" style="width:100%; height:100%; object-fit:cover;">`;
+        return `<div class="gallery-slot">${media}<button class="gallery-remove" onclick="removeEmojiSlot(${slot})">✕</button></div>`;
+      }
+      return `<div class="gallery-slot" onclick="document.getElementById('emojiInput${slot}').click()">
+        ➕
+        <input type="file" id="emojiInput${slot}" accept="image/*,video/*" style="display:none;" onchange="uploadEmojiSlot(${slot}, this.files[0])">
+      </div>`;
+    }).join('');
+  }
+
+  async function uploadEmojiSlot(slot, file) {
+    if (!file) return;
+    const isVideo = file.type.startsWith('video/');
+    const path = `${myProfile.id}/emoji-${slot}-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error } = await dsClient.storage.from('gallery').upload(path, file, { upsert: true });
+    if (error) { alert('❌ ' + error.message); return; }
+    const { data: pub } = dsClient.storage.from('gallery').getPublicUrl(path);
+    await dsClient.from('profile_emojis').upsert({ profile_id: myProfile.id, slot, media_url: pub.publicUrl, media_type: isVideo ? 'video' : 'image' }, { onConflict: 'profile_id,slot' });
+    loadEmojiSlots();
+  }
+
+  async function removeEmojiSlot(slot) {
+    await dsClient.from('profile_emojis').delete().eq('profile_id', myProfile.id).eq('slot', slot);
+    loadEmojiSlots();
+  }
+
+  async function saveProfile() {
+    const updates = {
+      display_name: document.getElementById('displayNameInput').value.trim() || myProfile.display_name,
+      font_choice: document.getElementById('fontSelect').value,
+      profile_private: document.getElementById('privateToggle').checked,
+    };
+    if (dsIsAdminActive(myProfile)) {
+      updates.admin_tag_visible = document.getElementById('admTagToggle').checked;
+      updates.admin_background = admBgChoice;
+      updates.admin_tag_label = document.getElementById('admTagSelect').value;
+    }
+
+    const { error } = await dsClient.from('profiles').update(updates).eq('id', myProfile.id);
+    const feedback = document.getElementById('feedback');
+    if (error) { feedback.innerText = '❌ ' + error.message; return; }
+    feedback.innerText = '✅ Perfil salvo com sucesso!';
+    loadProfile();
+  }
+
+  // ===== Galeria =====
+  async function loadGallery() {
+    const { data: items } = await dsClient.from('profile_gallery').select('*').eq('profile_id', myProfile.id);
+    const bySlot = {};
+    (items || []).forEach(i => bySlot[i.slot] = i);
+
+    const grid = document.getElementById('galleryGrid');
+    grid.innerHTML = [1, 2, 3, 4].map(slot => {
+      const item = bySlot[slot];
+      if (item) {
+        return `<div class="gallery-slot">
+          <img src="${item.image_url}">
+          <button class="gallery-remove" onclick="removeGalleryImage(${slot})">✕</button>
+        </div>`;
+      }
+      return `<div class="gallery-slot" onclick="document.getElementById('galleryInput${slot}').click()">
+        ➕
+        <input type="file" id="galleryInput${slot}" accept="image/*" onchange="uploadGalleryImage(${slot}, this.files[0])">
+      </div>`;
+    }).join('');
+  }
+
+  async function uploadGalleryImage(slot, file) {
+    if (!file) return;
+    const path = `${myProfile.id}/gallery-${slot}-${Date.now()}.${file.name.split('.').pop()}`;
+    const { error } = await dsClient.storage.from('gallery').upload(path, file, { upsert: true });
+    if (error) { alert('❌ ' + error.message); return; }
+    const { data: pub } = dsClient.storage.from('gallery').getPublicUrl(path);
+    await dsClient.from('profile_gallery').upsert({ profile_id: myProfile.id, slot, image_url: pub.publicUrl }, { onConflict: 'profile_id,slot' });
+    loadGallery();
+  }
+
+  async function removeGalleryImage(slot) {
+    await dsClient.from('profile_gallery').delete().eq('profile_id', myProfile.id).eq('slot', slot);
+    loadGallery();
+  }
+
+  // ===== Conquistas =====
+  async function loadAchievements() {
+    const { data: all } = await dsClient.from('achievements').select('*');
+    const { data: unlocked } = await dsClient.from('user_achievements').select('achievement_id').eq('profile_id', myProfile.id);
+    const unlockedIds = new Set((unlocked || []).map(u => u.achievement_id));
+
+    const list = document.getElementById('achievementsList');
+    list.innerHTML = (all || []).map(a => `
+      <div class="achievement-item ${unlockedIds.has(a.id) ? '' : 'locked'}">
+        <div class="achievement-icon">${a.icon}</div>
+        <div>
+          <div class="achievement-title">${a.title}</div>
+          <div class="achievement-desc">${a.description}</div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+    loadProfile();
+  });
+</script>
+</body>
+</html>
