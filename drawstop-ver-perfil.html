@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Perfil do Jogador</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@600;700&family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&family=Fredoka:wght@500;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root { --paper:#EDE4D2; --paper-2:#E3D6BC; --ink:#1F3A5C; --brick:#B23B2E; --mustard:#D9A404; --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A; }
+  body.profile-dark { --paper:#1A1A1A; --paper-2:#2A2A2A; --ink:#8FAEFF; --charcoal:#F0F0F0; --cream:#242424; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:'Poppins',sans-serif; color:var(--charcoal); background:var(--paper); overflow-x:hidden; }
+  body { display:flex; flex-direction:column; align-items:center; padding:15px 12px 50px; }
+  .container { width:100%; max-width:480px; display:flex; flex-direction:column; gap:16px; }
+  .btn-back { background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:6px 14px; font-weight:700; text-decoration:none; color:var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); font-size:13px; cursor:pointer; }
+  .banner-wrap { position:relative; height:150px; border-radius:18px; border:3px solid var(--charcoal); overflow:hidden; background:var(--mustard); }
+  .banner-media { width:100%; height:100%; object-fit:cover; }
+  .avatar-wrap { position:absolute; bottom:-38px; left:16px; width:76px; height:76px; }
+  .avatar-img { width:100%; height:100%; border-radius:18px; object-fit:cover; background:#FFF; border:3px solid var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); }
+  .avatar-emoji-fallback { width:100%; height:100%; border-radius:18px; background:#FFF; border:3px solid var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); display:flex; align-items:center; justify-content:center; font-size:36px; }
+  .avatar-wrap.admin .avatar-img, .avatar-wrap.admin .avatar-emoji-fallback { border-color:var(--mustard); box-shadow:0 0 14px var(--mustard); }
+  .profile-header-info { margin-top:44px; padding-left:4px; }
+  .profile-name-big { font-family:'Bebas Neue',sans-serif; font-size:26px; }
+  .adm-tag-big { font-size:11px; font-weight:900; background:linear-gradient(90deg,#F0BC2E,#D9A404); color:#3a2b00; padding:2px 8px; border-radius:8px; margin-left:6px; vertical-align:middle; }
+  .profile-code { font-size:12px; font-weight:700; color:var(--ink); }
+  .card-box { background:var(--cream); border:3px solid var(--charcoal); border-radius:20px; box-shadow:4px 6px 0px var(--charcoal); padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .stat-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; text-align:center; }
+  .stat-box { background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:8px; }
+  .stat-value { font-family:'Bebas Neue',sans-serif; font-size:22px; }
+  .stat-label { font-size:10px; font-weight:700; opacity:.7; }
+  .gallery-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+  .gallery-slot { aspect-ratio:1; border:2.5px solid var(--charcoal); border-radius:14px; overflow:hidden; background:var(--paper-2); }
+  .gallery-slot img { width:100%; height:100%; object-fit:cover; }
+  .achievements-grid { display:flex; flex-direction:column; gap:8px; }
+  .achievement-item { display:flex; align-items:center; gap:10px; background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:8px 10px; }
+  .achievement-item.locked { opacity:.4; filter:grayscale(1); }
+  .achievement-icon { font-size:22px; }
+  .achievement-title { font-weight:800; font-size:13px; }
+  .private-msg { text-align:center; padding:40px 20px; font-weight:700; }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <a href="drawstop-amigos.html" class="btn-back">⬅ Voltar</a>
+
+    <div id="privateView" style="display:none;">
+      <div class="private-msg">
+        🔒 Este jogador optou por manter o perfil privado.
+      </div>
+    </div>
+
+    <div id="profileView" style="display:none;">
+      <div style="position:relative; margin-bottom:16px;">
+        <div class="banner-wrap" id="bannerWrap">
+          <video class="banner-media" id="bannerVideo" style="display:none;" autoplay loop muted playsinline></video>
+          <img class="banner-media" id="bannerImg" style="display:none;">
+        </div>
+        <div class="avatar-wrap" id="avatarWrap">
+          <img class="avatar-img" id="avatarImg" style="display:none;">
+          <div class="avatar-emoji-fallback" id="avatarEmojiFallback">🎨</div>
+        </div>
+      </div>
+
+      <div class="profile-header-info">
+        <span class="profile-name-big" id="profileNameBig">Carregando...</span>
+        <span class="adm-tag-big" id="admTagBig" style="display:none;"></span>
+        <span id="rankTagsContainer"></span>
+        <div class="profile-code" id="profileCode"></div>
+      </div>
+
+      <div class="card-box" style="margin-top:16px;">
+        <div class="stat-grid">
+          <div class="stat-box"><div class="stat-value" id="statLevel">1</div><div class="stat-label">NÍVEL</div></div>
+          <div class="stat-box"><div class="stat-value" id="statXP">0</div><div class="stat-label">XP</div></div>
+          <div class="stat-box"><div class="stat-value" id="statCode">-</div><div class="stat-label">CÓDIGO</div></div>
+        </div>
+      </div>
+
+      <div class="card-box" style="margin-top:16px;">
+        <h3 style="margin:0;">🖼️ Galeria de Desenhos</h3>
+        <div class="gallery-grid" id="galleryGrid"></div>
+      </div>
+
+      <div class="card-box" style="margin-top:16px;">
+        <h3 style="margin:0;">🏆 Conquistas</h3>
+        <div class="achievements-grid" id="achievementsList"></div>
+      </div>
+    </div>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const userId = params.get('user');
+    if (!userId) { window.location.href = 'drawstop-amigos.html'; return; }
+
+    const { data: profile } = await dsClient.from('profiles').select('*').eq('id', userId).single();
+    if (!profile) { window.location.href = 'drawstop-amigos.html'; return; }
+
+    const myProfile = await dsGetProfile();
+    const isOwner = myProfile.id === userId;
+    const isAdmin = dsIsAdminActive(myProfile);
+
+    if (profile.profile_private && !isOwner && !isAdmin) {
+      document.getElementById('privateView').style.display = 'block';
+      return;
+    }
+
+    document.getElementById('profileView').style.display = 'block';
+
+    // Aplica o tema (claro/escuro) que o DONO do perfil escolheu — não o do visitante
+    if (profile.profile_theme === 'dark') {
+      document.body.classList.add('profile-dark');
+    }
+
+    document.getElementById('profileNameBig').innerText = profile.display_name;
+    document.getElementById('profileNameBig').style.fontFamily = `'${profile.font_choice || 'Poppins'}', sans-serif`;
+
+    const rankTags = await dsGetLiveRankTags(profile.id);
+    let rankTagsHtml = rankTags.map(t =>
+      `<span class="adm-tag-big" style="background:linear-gradient(90deg,#8E44AD,#3E8E5A); color:#fff; display:inline-block;">${t.label}</span>`
+    ).join(' ');
+    if (profile.custom_rank_tag) {
+      rankTagsHtml += ` <span class="adm-tag-big" style="background:linear-gradient(90deg,#E91E63,#FF9800); color:#fff; display:inline-block;">${profile.custom_rank_tag}</span>`;
+    }
+    document.getElementById('rankTagsContainer').innerHTML = rankTagsHtml;
+    document.getElementById('profileCode').innerText = profile.friend_code;
+    document.getElementById('statLevel').innerText = profile.level;
+    document.getElementById('statXP').innerText = profile.xp;
+    document.getElementById('statCode').innerText = profile.friend_code.replace('#DS-', '');
+
+    if (profile.avatar_url) {
+      document.getElementById('avatarImg').src = profile.avatar_url;
+      document.getElementById('avatarImg').style.display = 'block';
+      document.getElementById('avatarEmojiFallback').style.display = 'none';
+    } else {
+      document.getElementById('avatarEmojiFallback').innerText = profile.avatar_emoji || '🎨';
+    }
+
+    if (profile.banner_url && profile.banner_type === 'video') {
+      document.getElementById('bannerVideo').src = profile.banner_url;
+      document.getElementById('bannerVideo').style.display = 'block';
+    } else if (profile.banner_url) {
+      document.getElementById('bannerImg').src = profile.banner_url;
+      document.getElementById('bannerImg').style.display = 'block';
+    }
+
+    if (dsIsAdminActive(profile)) {
+      document.getElementById('avatarWrap').classList.add('admin');
+      if (profile.admin_tag_visible) {
+        document.getElementById('admTagBig').style.display = 'inline-block';
+        document.getElementById('admTagBig').innerText = profile.admin_tag_label || 'ADM';
+      }
+    }
+
+    const { data: gallery } = await dsClient.from('profile_gallery').select('*').eq('profile_id', userId).order('slot');
+    const galleryGrid = document.getElementById('galleryGrid');
+    if (!gallery || gallery.length === 0) {
+      galleryGrid.innerHTML = '<div style="font-size:12px; opacity:.7;">Nenhum desenho na galeria ainda.</div>';
+    } else {
+      galleryGrid.innerHTML = gallery.map(g => `<div class="gallery-slot"><img src="${g.image_url}"></div>`).join('');
+    }
+
+    const { data: allAch } = await dsClient.from('achievements').select('*');
+    const { data: unlocked } = await dsClient.from('user_achievements').select('achievement_id').eq('profile_id', userId);
+    const unlockedIds = new Set((unlocked || []).map(u => u.achievement_id));
+    document.getElementById('achievementsList').innerHTML = (allAch || []).map(a => `
+      <div class="achievement-item ${unlockedIds.has(a.id) ? '' : 'locked'}">
+        <div class="achievement-icon">${a.icon}</div>
+        <div><div class="achievement-title">${a.title}</div></div>
+      </div>
+    `).join('');
+  });
+</script>
+</body>
+</html>
