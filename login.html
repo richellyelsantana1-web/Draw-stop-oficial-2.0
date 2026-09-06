@@ -283,11 +283,16 @@
   }
 
   async function handleGoogleLogin() {
-    await dsClient.auth.signInWithOAuth({
-      provider: 'google',
-      options: { redirectTo: window.location.origin + '/drawstop-menu.html' }
-    });
-  }
+  await dsClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: new URL(
+        'drawstop-menu.html',
+        window.location.href
+      ).href
+    }
+  });
+}
 
   function openGuestModal() { document.getElementById('guestModal').classList.add('active'); }
   function closeGuestModal() { document.getElementById('guestModal').classList.remove('active'); }
