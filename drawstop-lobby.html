@@ -1,0 +1,145 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Lobby</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root { --paper:#EDE4D2; --paper-2:#E3D6BC; --ink:#1F3A5C; --brick:#B23B2E; --mustard:#D9A404; --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:'Poppins',sans-serif; color:var(--charcoal); background:var(--paper); }
+  body { display:flex; flex-direction:column; align-items:center; padding:15px 12px 50px; }
+  .container { width:100%; max-width:480px; display:flex; flex-direction:column; gap:16px; }
+  .top-bar { display:flex; justify-content:space-between; align-items:center; }
+  .btn-back { background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:6px 14px; font-weight:700; text-decoration:none; color:var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); font-size:13px; cursor:pointer; }
+  .header-title { font-family:'Bebas Neue',sans-serif; font-size:30px; text-align:center; margin:0; }
+  .room-code { text-align:center; font-weight:800; font-size:13px; color:var(--ink); }
+  .card-box { background:var(--cream); border:3px solid var(--charcoal); border-radius:20px; box-shadow:4px 6px 0px var(--charcoal); padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .player-row { display:flex; align-items:center; justify-content:space-between; background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:10px 12px; }
+  .player-info { display:flex; align-items:center; gap:10px; }
+  .player-avatar { width:36px; height:36px; border-radius:8px; background:#FFF; border:2px solid var(--charcoal); display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .host-badge { font-size:9px; font-weight:900; background:var(--mustard); padding:1px 6px; border-radius:6px; margin-left:4px; }
+  .ready-badge { font-size:11px; font-weight:800; color:var(--green); }
+  .btn-start { width:100%; padding:14px; background:var(--brick); color:#FFF; border:3px solid var(--charcoal); border-radius:16px; font-weight:800; font-size:16px; cursor:pointer; box-shadow:3px 5px 0px var(--charcoal); text-transform:uppercase; }
+  .btn-start:disabled { opacity:.5; cursor:not-allowed; }
+  .btn-ready { width:100%; padding:12px; background:var(--green); color:#FFF; border:2.5px solid var(--charcoal); border-radius:14px; font-weight:800; cursor:pointer; box-shadow:3px 4px 0px var(--charcoal); }
+</style>
+</head>
+<body>
+
+  <div class="container">
+    <div class="top-bar">
+      <button class="btn-back" onclick="leaveRoom()">⬅ Sair</button>
+      <h1 class="header-title" id="roomTitle">Lobby</h1>
+      <div style="width:70px;"></div>
+    </div>
+    <div class="room-code" id="roomInfo">Carregando...</div>
+
+    <div class="card-box">
+      <div id="playersList"><div>Carregando jogadores...</div></div>
+    </div>
+
+    <button class="btn-ready" id="btnReady" onclick="toggleReady()">✅ Estou Pronto</button>
+    <button class="btn-start" id="btnStart" onclick="startGame()" style="display:none;">🎮 Iniciar Partida</button>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const roomId = params.get('room');
+  let myProfile = null;
+  let room = null;
+  let isHost = false;
+  let iAmReady = false;
+
+  const MODE_LABELS = { gartic: '✏️ Draw', stop: '🛑 Stop', stop_desenhado: '🎨 Stop Desenhado' };
+
+  async function loadRoom() {
+    const { data } = await dsClient.from('rooms').select('*').eq('id', roomId).single();
+    room = data;
+    if (!room) { alert('Sala não encontrada.'); window.location.href = 'drawstop-menu.html'; return; }
+
+    isHost = room.host_id === myProfile.id;
+    document.getElementById('roomTitle').innerText = room.name;
+    document.getElementById('roomInfo').innerHTML = `🔑 Código: <b>${room.room_code || '—'}</b> · ${MODE_LABELS[room.mode]} · ${room.num_rounds} rodadas · ${room.round_time}s por rodada`;
+
+    if (room.status === 'playing') {
+      goToGame();
+    }
+
+    loadPlayers();
+  }
+
+  async function loadPlayers() {
+    const { data: players } = await dsClient
+      .from('room_players')
+      .select('*, profile:player_id(*)')
+      .eq('room_id', roomId);
+
+    const list = document.getElementById('playersList');
+    list.innerHTML = (players || []).map(p => `
+      <div class="player-row" style="margin-bottom:8px;">
+        <div class="player-info">
+          <div class="player-avatar">${p.profile.avatar_emoji || '🎨'}</div>
+          <div>
+            <div style="font-weight:800; font-size:13px;">${p.profile.display_name}${p.player_id === room.host_id ? '<span class="host-badge">HOST</span>' : ''}</div>
+          </div>
+        </div>
+        <div class="ready-badge">${p.is_ready ? '✅ Pronto' : '⏳ Aguardando'}</div>
+      </div>
+    `).join('');
+
+    const me = (players || []).find(p => p.player_id === myProfile.id);
+    iAmReady = me ? me.is_ready : false;
+    document.getElementById('btnReady').innerText = iAmReady ? '❌ Cancelar Pronto' : '✅ Estou Pronto';
+
+    if (isHost) {
+      const allReady = players && players.length > 0 && players.every(p => p.is_ready || p.player_id === room.host_id);
+      document.getElementById('btnStart').style.display = 'block';
+      document.getElementById('btnStart').disabled = !(players && players.length >= 1);
+      document.getElementById('btnReady').style.display = 'none';
+    }
+  }
+
+  async function toggleReady() {
+    await dsClient.from('room_players').update({ is_ready: !iAmReady }).eq('room_id', roomId).eq('player_id', myProfile.id);
+  }
+
+  async function startGame() {
+    await dsClient.from('rooms').update({ status: 'playing', current_round: 1 }).eq('id', roomId);
+  }
+
+  function goToGame() {
+    const page = room.mode === 'gartic' ? 'drawstop-jogo-gartic.html'
+      : room.mode === 'stop_desenhado' ? 'drawstop-jogo-stop-desenhado.html'
+      : 'drawstop-jogo-stop.html';
+    window.location.href = `${page}?room=${roomId}`;
+  }
+
+  async function leaveRoom() {
+    await dsClient.from('room_players').delete().eq('room_id', roomId).eq('player_id', myProfile.id);
+    await dsSetStatus('online');
+    window.location.href = 'drawstop-menu.html';
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+    myProfile = await dsGetProfile();
+    await loadRoom();
+
+    // Tempo real: jogadores entrando/saindo/prontos
+    dsClient.channel('lobby-' + roomId)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'room_players', filter: `room_id=eq.${roomId}` }, loadPlayers)
+      .on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'rooms', filter: `id=eq.${roomId}` }, (payload) => {
+        room = payload.new;
+        if (room.status === 'playing') goToGame();
+      })
+      .subscribe();
+  });
+</script>
+</body>
+</html>

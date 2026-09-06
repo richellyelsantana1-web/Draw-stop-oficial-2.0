@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DrawStop — Sugestão MEGA</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+  :root { --paper:#EDE4D2; --paper-2:#E3D6BC; --ink:#1F3A5C; --brick:#B23B2E; --mustard:#D9A404; --charcoal:#2B2620; --cream:#FAF6EC; --green:#3E8E5A; }
+  * { box-sizing:border-box; }
+  html, body { margin:0; padding:0; min-height:100vh; font-family:'Poppins',sans-serif; color:var(--charcoal); background:var(--paper); }
+  body { display:flex; flex-direction:column; align-items:center; padding:15px 12px 50px; }
+  .container { width:100%; max-width:480px; display:flex; flex-direction:column; gap:16px; }
+  .btn-back { background:var(--cream); border:2.5px solid var(--charcoal); border-radius:12px; padding:6px 14px; font-weight:700; text-decoration:none; color:var(--charcoal); box-shadow:3px 3px 0px var(--charcoal); font-size:13px; cursor:pointer; }
+  .header-title { font-family:'Bebas Neue',sans-serif; font-size:32px; text-align:center; margin:0; background:linear-gradient(90deg,#00e5ff,#ff00e5); -webkit-background-clip:text; background-clip:text; color:transparent; }
+  .card-box { background:var(--cream); border:3px solid var(--charcoal); border-radius:20px; box-shadow:4px 6px 0px var(--charcoal); padding:18px; display:flex; flex-direction:column; gap:12px; }
+  .input-field { width:100%; padding:10px 12px; border:2.5px solid var(--charcoal); border-radius:10px; font-family:inherit; font-weight:700; font-size:13px; background:#FFF; color:#000; outline:none; }
+  .btn-primary { width:100%; padding:14px; background:linear-gradient(90deg,#00e5ff,#ff00e5); color:#fff; border:3px solid var(--charcoal); border-radius:14px; font-weight:800; font-size:15px; cursor:pointer; box-shadow:3px 4px 0px var(--charcoal); }
+  .btn-primary:disabled { opacity:.5; cursor:not-allowed; }
+  .locked-box { text-align:center; padding:30px 15px; }
+  .history-item { background:var(--paper-2); border:2px solid var(--charcoal); border-radius:12px; padding:10px 12px; margin-bottom:8px; font-size:12px; }
+  .status-pending { color:var(--mustard); font-weight:800; }
+  .status-approved { color:var(--green); font-weight:800; }
+  .status-rejected { color:var(--brick); font-weight:800; }
+</style>
+</head>
+<body>
+  <div class="container">
+    <a href="drawstop-menu.html" class="btn-back">⬅ Voltar</a>
+    <h1 class="header-title">✨ SUGESTÃO MEGA</h1>
+
+    <div id="lockedView" style="display:none;">
+      <div class="card-box locked-box">
+        <div style="font-size:40px;">🔒</div>
+        <p>Esse recurso é exclusivo de quem tem o plano <b>MEGA</b>.</p>
+      </div>
+    </div>
+
+    <div id="mainView" style="display:none;">
+      <div class="card-box">
+        <p style="font-size:13px;">Envie uma palavra oficial para o criador do jogo avaliar. Você pode enviar uma sugestão a cada 48 horas.</p>
+        <label style="font-weight:800; font-size:13px;">Categoria</label>
+        <input type="text" id="catInput" class="input-field" placeholder="Ex: Desenho Animado">
+        <label style="font-weight:800; font-size:13px;">Palavra</label>
+        <input type="text" id="wordInput" class="input-field" placeholder="Ex: Bob Esponja">
+        <button class="btn-primary" id="btnSend" onclick="sendSuggestion()">Enviar para o Criador</button>
+        <div id="cooldownMsg" style="text-align:center; font-size:12px; font-weight:700; opacity:.7;"></div>
+      </div>
+
+      <div class="card-box">
+        <h3 style="margin:0;">📋 Suas sugestões</h3>
+        <div id="historyList"><div style="font-size:12px; opacity:.7;">Carregando...</div></div>
+      </div>
+    </div>
+  </div>
+
+<script src="drawstop-supabase.js?v=8"></script>
+<script>
+  let myProfile = null;
+
+  async function loadHistory() {
+    const { data } = await dsClient.from('word_suggestions').select('*').eq('player_id', myProfile.id).order('created_at', { ascending: false });
+    const list = document.getElementById('historyList');
+    if (!data || data.length === 0) { list.innerHTML = '<div style="font-size:12px; opacity:.7;">Nenhuma sugestão enviada ainda.</div>'; return; }
+
+    list.innerHTML = data.map(s => `
+      <div class="history-item">
+        <div><b>${s.category}</b>: ${s.word}</div>
+        <div class="status-${s.status}">${s.status === 'pending' ? '⏳ Pendente' : s.status === 'approved' ? '🟢 Aprovado' : '🔴 Recusado'}</div>
+        ${s.admin_response ? `<div style="margin-top:4px;">💬 ${s.admin_response}</div>` : ''}
+      </div>
+    `).join('');
+
+    const last = data[0];
+    const canSubmit = await dsClient.rpc('can_submit_suggestion', { pid: myProfile.id });
+    if (canSubmit.data === false) {
+      const nextTime = new Date(new Date(last.created_at).getTime() + 48 * 60 * 60 * 1000);
+      document.getElementById('btnSend').disabled = true;
+      document.getElementById('cooldownMsg').innerText = `Próximo envio disponível em: ${nextTime.toLocaleString('pt-BR')}`;
+    } else {
+      document.getElementById('btnSend').disabled = false;
+      document.getElementById('cooldownMsg').innerText = '';
+    }
+  }
+
+  async function sendSuggestion() {
+    const category = document.getElementById('catInput').value.trim();
+    const word = document.getElementById('wordInput').value.trim();
+    if (!category || !word) { alert('Preencha categoria e palavra!'); return; }
+
+    const { error } = await dsClient.from('word_suggestions').insert({ player_id: myProfile.id, category, word });
+    if (error) { alert('❌ ' + error.message); return; }
+
+    document.getElementById('catInput').value = '';
+    document.getElementById('wordInput').value = '';
+    alert('✅ Sugestão enviada! Aguarde a avaliação.');
+    loadHistory();
+  }
+
+  window.addEventListener('DOMContentLoaded', async () => {
+    const session = await dsRequireAuth();
+    if (!session) return;
+    myProfile = await dsGetProfile();
+
+    if (myProfile.subscription_tier !== 'mega') {
+      document.getElementById('lockedView').style.display = 'block';
+      return;
+    }
+    document.getElementById('mainView').style.display = 'block';
+    loadHistory();
+  });
+</script>
+</body>
+</html>
