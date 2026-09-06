@@ -283,15 +283,24 @@
   }
 
   async function handleGoogleLogin() {
-  await dsClient.auth.signInWithOAuth({
+  const redirectUrl = new URL(
+    'drawstop-menu.html',
+    window.location.href
+  ).href;
+
+  console.log('Redirecionando para:', redirectUrl);
+
+  const { data, error } = await dsClient.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: new URL(
-        'drawstop-menu.html',
-        window.location.href
-      ).href
+      redirectTo: redirectUrl
     }
   });
+
+  if (error) {
+    console.error('Erro no Google Login:', error);
+    alert('Erro ao entrar com Google: ' + error.message);
+  }
 }
 
   function openGuestModal() { document.getElementById('guestModal').classList.add('active'); }
